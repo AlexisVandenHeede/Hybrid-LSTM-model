@@ -187,13 +187,13 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
         if verbose:
-            val_loss = np.array(val_loss_history)
-            print(f"Epoch {i+1}: train loss = {train_loss}, val loss = {val_loss}")
+                print(f"Epoch {i+1}: train loss = {train_loss}, val loss = {val_loss}")
         # earlystopper
         if early_stopper.early_stop(val_loss):
             print("Early stopping")
             break
-        return model, train_loss_history, val_loss_history
+
+    return model, train_loss_history, val_loss_history
 
 
 def plot_loss(train_loss_history, val_loss_history):
