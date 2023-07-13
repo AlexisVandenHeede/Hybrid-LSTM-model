@@ -30,7 +30,7 @@ def train_evaluate(ga_individual_sol):
     return [total_err]
 
 
-if __name__ == '__main__':  
+if __name__ == '__main__':
     # init variables of ga using deap
     # set seed for reproducibility
     np.random.seed(7)
@@ -48,13 +48,13 @@ if __name__ == '__main__':
 
     # create toolbox & initialize population (bernoulli random variables)
     toolbox = base.Toolbox()
-    toolbox.register("binary", poisson.rvs, 0.5) 
+    toolbox.register("binary", poisson.rvs, 0.5)
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.binary, n=entire_length)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     # ordered cross over for mating
     toolbox.register("mate", tools.cxOrdered)
-    # mutati
+    # mutation
     toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.6)
     # selection algorithm
     toolbox.register("select", tools.selTournament, tournsize=int(popsize/2))

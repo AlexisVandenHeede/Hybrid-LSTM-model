@@ -45,11 +45,59 @@ def train_test_validation_split(X, y, test_size, cv_size):
     return X_train, y_train, X_test, y_test, X_cv, y_cv
 
 
-def data_split(normalised_data, test_size, cv_size):
+def data_split(normalised_data, test_size, cv_size, seq_length):
     """ Split data into X Y  train, test and validation sets"""
     y = normalised_data['TTD']
     X = normalised_data.drop(['TTD', 'Time'], axis=1)
     X_train, y_train, X_test, y_test, X_cv, y_cv = train_test_validation_split(X, y, test_size, cv_size)
+
+    x_tr = []
+    y_tr = []
+    for i in range(seq_length, len(X_train)):
+        x_tr.append(X_train.values[i-seq_length:i])
+        y_tr.append(y_train.values[i])
+        
+    x_tr = torch.tensor(np.array(x_tr))
+    y_tr = torch.tensor(y_tr).unsqueeze(1).unsqueeze(2)
+
+    x_v = []
+    y_v = []
+    for i in range(seq_length, len(X_cv)):
+        x_v.append(X_cv.values[i-seq_length:i])
+        y_v.append(y_cv.values[i])
+
+    x_v = torch.tensor(np.array(x_v))
+    y_v = torch.tensor(y_v).unsqueeze(1).unsqueeze(2)
+
+    x_t = []
+    y_t = []
+    for i in range(seq_length, len(X_test)):
+        x_t.append(X_test.values[i-seq_length:i])
+        y_t.append(y_test.values[i])
+
+    x_t = torch.tensor(np.array(x_t))
+    y_t = torch.tensor(y_t).unsqueeze(1).unsqueeze(2)
+
+    if torch.cuda.is_available() == True:
+        print('Running on GPU')
+        X_train = x_tr.to('cuda').float()
+        y_train = y_tr.to('cuda').float()
+        X_test = x_t.to('cuda').float()
+        y_test = y_t.to('cuda').float()
+        X_cv = x_v.to('cuda').float()
+        y_cv = y_v.to('cuda').float()
+        print("X_train and y_train are on GPU: ", X_train.is_cuda, y_train.is_cuda)
+        print("X_test and y_test are on GPU: ", X_test.is_cuda, y_test.is_cuda)
+        print("X_cv and y_cv are on GPU: ", X_cv.is_cuda, y_cv.is_cuda)
+        print(f"size of X_train: {X_train.size()} and y_train: {y_train.size()}")
+    else:
+        X_train = x_tr.clone().detach().float()
+        y_train = y_tr.clone().detach().float()
+        X_test = x_t.clone().detach().float()
+        y_test = y_t.clone().detach().float()
+        X_cv = x_v.clone().detach().float()
+        y_cv = y_v.clone().detach().float()
+
     return X_train, y_train, X_test, y_test, X_cv, y_cv
 
 
@@ -102,7 +150,7 @@ def basis_func(scaling_factor, hidden_layers):
     return basis_function
 
 
-def trainbatch(model, train_dataloader, val_dataloader, n_epochs, lf, optimiser, verbose):
+def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser, verbose):
     """
     train model dataloaders, early stopper Class
     """
@@ -114,7 +162,7 @@ def trainbatch(model, train_dataloader, val_dataloader, n_epochs, lf, optimiser,
         train_loss_history = []
         val_loss_history = []
 
-    for i in range(n_epochs):
+    for i in range(n_epoch):
         loss_v = 0
         loss = 0
         for l, (x, y) in enumerate(train_dataloader):
@@ -181,3 +229,10 @@ class SeqDataset:
             raise StopIteration
 
         return x, y
+
+def eval_model(model, X_test, y_test, criterion):
+    model.eval()
+    with torch.no_grad():
+        y_pred = model(X_test)
+        rmse = np.sqrt(criterion(y_test, y_pred).item())
+    return rmse
