@@ -118,8 +118,10 @@ def EKF(r, p, q, battery_num):
 
 # testing if the algorithm works
 # please uncomment this if you want to run the optimiser
-soc_est, vt_est, vt_err, vt_act, total_err = EKF(0.025, 1e-5, 0.00646, 'B0005')  # best hyperparams from GA after 10 gen w/ popsize == 10
+"""
+soc_est, vt_est, vt_err, vt_act, total_err = EKF(0.03, 0.0032354, 0.012911, 'B0005')  # best hyperparams from GA after 10 gen w/ popsize == 10
 plt.plot(vt_est, label='Estimated Voltage')
 plt.plot(vt_act, label='Actual Voltage')
 plt.legend()
 plt.show()
+"""
