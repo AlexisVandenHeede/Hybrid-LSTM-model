@@ -13,7 +13,7 @@ def load_data_normalise(battery, model_type):
     data = []
     if model_type == 'data':
         for i in battery:
-            data.append(pd.read_csv("data/" + i + "_TTD.csv"))
+            data.append(pd.read_csv("data/" + i + "_TTD1.csv"))
     elif model_type == 'hybrid':
         for i in battery:
             data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))

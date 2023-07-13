@@ -17,7 +17,6 @@ normalised_data, time_mean, time_std = load_data_normalise(battery, model_type)
 
 # data initialisation
 X_train, y_train, X_test, y_test, X_val, y_val = data_split(normalised_data, test_size=test_size, cv_size=cv_size, seq_length=seq_length)
-print(X_train.shape)
 # hyperparameters
 num_layers_conv = 1
 output_channels = [6]
@@ -35,6 +34,7 @@ opimiser = torch.optim.Adam(model.parameters(), lr=lr)
 
 # device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(f'device is {device}')
 model.to(device)
 
 # data loader
@@ -43,8 +43,6 @@ validation_dataset = SeqDataset(x_data=X_val, y_data=y_val, seq_len=seq_length, 
 # do i need test dataset not on other file
 # test_dataset = SeqDataset(x_data=X_test, y_data=y_test, seq_leng=seq_length, batch_size=batch_size)
 
-# train data set to device
-
 """
 train_dataset.to(device)
 validation_dataset.to(device)
@@ -52,4 +50,3 @@ validation_dataset.to(device)
 """
 # Training model
 model, train_loss_history, val_loss_history = train_batch(model, train_dataset, validation_dataset, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
-

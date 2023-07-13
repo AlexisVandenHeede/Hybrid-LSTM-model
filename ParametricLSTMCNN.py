@@ -96,8 +96,8 @@ class ParametricLSTMCNN(nn.Module):
             print(f'shape of x is {x.shape}')
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-        h_0 = torch.randn(self.num_layer_lstm, x.shape[0], self.hidden_size_lstm).to(device).double()
-        c_0 = torch.randn(self.num_layer_lstm, x.shape[0], self.hidden_size_lstm).to(device).double()
+        h_0 = torch.randn(self.num_layer_lstm, x.shape[0], self.hidden_size_lstm).to(device).float()
+        c_0 = torch.randn(self.num_layer_lstm, x.shape[0], self.hidden_size_lstm).to(device).float()
 
         # output of lstm
         output, (hn, cn) = self.lstm(x, (h_0, c_0))  # lstm with input, hidden, and internal state
@@ -128,7 +128,7 @@ class ParametricLSTMCNN(nn.Module):
             if verbose:
                 print(f'shape after dense layer {j+1} is {out.shape}')
 
-        out = out = self.dropout(out)
+        out = self.dropout(out)
 
         last_dense = f'dense{len(self.hidden_neurons_dense)}'
         last_dense_layer = getattr(self, last_dense)
@@ -136,6 +136,5 @@ class ParametricLSTMCNN(nn.Module):
 
         if verbose:
             print(f'output shape is {out.shape}')
-        # print("its actually working - no way lets gooo")
 
         return out
