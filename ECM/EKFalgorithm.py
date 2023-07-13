@@ -32,13 +32,6 @@ def EKF(r, p, q, battery_num):
     C2_dat = interpolants['C2']
     T_dat = interpolants['T']
 
-    # # interpolant functions 
-    # F_R0 = s.interpolate.interp2d(SOC, T, R0, kind='cubic')
-    # F_R1 = s.interpolate.interp2d(SOC, T, R1, kind='cubic')
-    # F_R2 = s.interpolate.interp2d(SOC, T, R2, kind='cubic')
-    # F_C1 = s.interpolate.interp2d(SOC, T, C1, kind='cubic')
-    # F_C2 = s.interpolate.interp2d(SOC, T, C2, kind='cubic')
-
     # Load current and temperature data
     soc_init = 1
     X = np.matrix([[soc_init], [0], [0]])
@@ -66,12 +59,6 @@ def EKF(r, p, q, battery_num):
         soc = X.item(0)
         V1 = X[1]
         V2 = X[2]
-
-        # R0 = F_R0(soc, T)
-        # R1 = F_R1(soc, T)
-        # R2 = F_R2(soc, T)
-        # C1 = F_C1(soc, T)
-        # C2 = F_C2(soc, T)
 
         R0 = s.interpolate.griddata((SOC_dat, T_dat), R0_dat, (soc, T_val), method='nearest')
         R1 = s.interpolate.griddata((SOC_dat, T_dat), R1_dat, (soc, T_val), method='nearest')
@@ -118,10 +105,8 @@ def EKF(r, p, q, battery_num):
 
 # testing if the algorithm works
 # please uncomment this if you want to run the optimiser
-"""
 soc_est, vt_est, vt_err, vt_act, total_err = EKF(0.03, 0.0032354, 0.012911, 'B0005')  # best hyperparams from GA after 10 gen w/ popsize == 10
 plt.plot(vt_est, label='Estimated Voltage')
 plt.plot(vt_act, label='Actual Voltage')
 plt.legend()
 plt.show()
-"""
