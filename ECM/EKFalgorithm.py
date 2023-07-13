@@ -3,8 +3,9 @@ import pandas as pd
 import scipy as s
 import matplotlib.pyplot as plt
 
+
 def EKF(r, p, q, battery_num):
-    # load actual data 
+    # load actual data
     bat = []
     bat.append(pd.read_csv('data/' + battery_num + '_TTD.csv'))
     bat = pd.concat(bat)
@@ -106,13 +107,12 @@ def EKF(r, p, q, battery_num):
 
     total_err = (np.sum(np.square(Vt_err)))/len(Vt_err)
     print(f'MSE is {total_err}')
-        
     return SOC_est, Vt_est, Vt_err, Vt_act, total_err
 
 
-# testing if the algorithm works 
-# please uncomment this if you want to run the optimiser 
-soc_est, vt_est, vt_err, vt_act, total_err = EKF(0.03, 0.0032354, 0.012911, 'B0005') # best hyperparams from GA after 10 gen w/ popsize == 10
+# testing if the algorithm works
+# please uncomment this if you want to run the optimiser
+soc_est, vt_est, vt_err, vt_act, total_err = EKF(0.03, 0.0032354, 0.012911, 'B0005')  # best hyperparams from GA after 10 gen w/ popsize == 10
 plt.plot(vt_est, label='Estimated Voltage')
 plt.plot(vt_act, label='Actual Voltage')
 plt.legend()

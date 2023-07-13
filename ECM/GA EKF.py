@@ -1,8 +1,9 @@
 import numpy as np
 from EKFalgorithm import EKF
 from deap import base, creator, tools, algorithms
-from scipy.stats import bernoulli, poisson # check if poisson actually makes a difference
+from scipy.stats import poisson  # check if poisson actually makes a difference or if bernoulli should be used
 from bitstring import BitArray
+
 
 def train_evaluate(ga_individual_sol):
     gene_length = 5
@@ -23,10 +24,11 @@ def train_evaluate(ga_individual_sol):
     # Run EKF
     try:
         soc_est, vt_est, vt_err, vt_act, total_err = EKF(R, P, Q, 'B0005')
-    except:
+    except np.linalg.LinAlgError:
         total_err = 1000000
 
     return [total_err]
+
 
 if __name__ == '__main__':  
     # init variables of ga using deap
@@ -36,12 +38,11 @@ if __name__ == '__main__':
     ngen = 10
     # set population size
     popsize = 10
-  
     # set gene length
     gene_length = 5
     entire_length = 3*gene_length
 
-     # basically creates classes for the fitness and individual
+    # basically creates classes for the fitness and individual
     creator.create('FitnessMax', base.Fitness, weights=[-1.0])
     creator.create('Individual', list, fitness=creator.FitnessMax)
 
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     # selection algorithm
     toolbox.register("select", tools.selTournament, tournsize=int(popsize/2))
     # evaluation fitness of individuals
-    toolbox.register("evaluate", train_evaluate) # this train evaluate might not be allowed to have gene)length as input
+    toolbox.register("evaluate", train_evaluate)  # this train evaluate might not be allowed to have gene)length as input
 
     population = toolbox.population(n=popsize)
     r = algorithms.eaSimple(population, toolbox, cxpb=0.4, mutpb=0.3, ngen=ngen, verbose=True)
@@ -67,6 +68,3 @@ if __name__ == '__main__':
     best_individuals = tools.selBest(population, k=2)
     print('Best ever individual = ', best_individuals[0], '\nFitness = ', best_individuals[0].fitness.values[0])
     print(f'list of individuals = {best_individuals}')
-
-
-
