@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class ParametricLSTMCNN(nn.Module):
     def __init__(self, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq, inputlstm):
-        super(ParametricLSTMCNN, self).__init__()   
+        super(ParametricLSTMCNN, self).__init__()
         self.output_channels = output_channels
         self.kernel_sizes = kernel_sizes
         self.stride_sizes = stride_sizes
@@ -14,26 +14,26 @@ class ParametricLSTMCNN(nn.Module):
         self.num_layer_lstm = num_layers_lstm
         self.hidden_neurons_dense = hidden_neurons_dense
         self.seq = seq
-        self.inputlstm = inputlstm        
+        self.inputlstm = inputlstm       
         self.output_shape = []
         for i in range(self.num_layers_conv):
             if i == 0:
                 if self.kernel_sizes[i] > self.hidden_neurons_dense[i] + 2 * self.padding_sizes[i]:
                     print('changed kernel size')
                     self.kernel_sizes[i] = self.hidden_neurons_dense[i] + 2 * self.padding_sizes[i] - 1
-                    output_shape_1 = (self.hidden_neurons_dense[i] - self.kernel_sizes[i] + 2* self.padding_sizes[i])/self.stride_sizes[i] + 1
+                    output_shape_1 = (self.hidden_neurons_dense[i] - self.kernel_sizes[i] + 2 * self.padding_sizes[i])/self.stride_sizes[i] + 1
                     self.output_shape.append(output_shape_1)
                 else:
-                    output_shape_1 = (self.hidden_neurons_dense[i] - self.kernel_sizes[i] + 2* self.padding_sizes[i])/self.stride_sizes[i] + 1
+                    output_shape_1 = (self.hidden_neurons_dense[i] - self.kernel_sizes[i] + 2 * self.padding_sizes[i])/self.stride_sizes[i] + 1
                     self.output_shape.append(output_shape_1)
             else:
                 if self.kernel_sizes[i] > self.output_shape[i-1] + 2 * self.padding_sizes[i-1]:
                     print('changed kernel size')
                     self.kernel_sizes[i] = self.output_shape[i-1] + 2 * self.padding_sizes[i-1] - 1
-                    output_shape = (self.output_shape[i-1] - self.kernel_sizes[i] + 2* self.padding_sizes[i])/self.stride_sizes[i] + 1
+                    output_shape = (self.output_shape[i-1] - self.kernel_sizes[i] + 2 * self.padding_sizes[i])/self.stride_sizes[i] + 1
                     self.output_shape.append(output_shape)
                 else:
-                    output_shape = (self.output_shape[i-1] - self.kernel_sizes[i] + 2* self.padding_sizes[i])/self.stride_sizes[i] + 1
+                    output_shape = (self.output_shape[i-1] - self.kernel_sizes[i] + 2 * self.padding_sizes[i])/self.stride_sizes[i] + 1
                     self.output_shape.append(output_shape)
 
         # print(self.output_shape)
@@ -44,8 +44,8 @@ class ParametricLSTMCNN(nn.Module):
             self.lstm = nn.LSTM(self.inputlstm, self.hidden_size_lstm, num_layers=self.num_layer_lstm, batch_first=True, dropout=0.2)  # changed the input becasue the data from physical model is different
 
             # then dense
-            self.dense1 = nn.Linear(self.hidden_size_lstm, self.hidden_neurons_dense[0])         
-            # set the conv and batchnorm layers 
+            self.dense1 = nn.Linear(self.hidden_size_lstm, self.hidden_neurons_dense[0])  
+            # set the conv and batchnorm layers
             for i in range(1, self.num_layers_conv+1):
                 if i == 1:
                     if self.num_layers_conv == 1:
@@ -92,7 +92,8 @@ class ParametricLSTMCNN(nn.Module):
             nn.init.xavier_normal_(conv_layer.weight)
 
     def forward(self, x, verbose=False):
-        if verbose: print(f'shape of x is {x.shape}')
+        if verbose:
+            print(f'shape of x is {x.shape}')
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         h_0 = torch.randn(self.num_layer_lstm, x.shape[0], self.hidden_size_lstm).to(device).double()
@@ -100,27 +101,32 @@ class ParametricLSTMCNN(nn.Module):
 
         # output of lstm
         output, (hn, cn) = self.lstm(x, (h_0, c_0))  # lstm with input, hidden, and internal state
-        if verbose: print(f'shape after lstm is {output.shape}')
+        if verbose:
+            print(f'shape after lstm is {output.shape}')
         # output of first dense layer 
         out = self.relu(self.dense1(self.relu(output)))
-        if verbose: print(f'shape after first dense layer is {out.shape}')
+        if verbose:
+            print(f'shape after first dense layer is {out.shape}')
 
         for i in range(self.num_layers_conv):
-            conv_name = f'conv{i+1}' # or use whatever naming scheme you used for your conv layers
+            conv_name = f'conv{i+1}'  # or use whatever naming scheme you used for your conv layers
             conv_layer = getattr(self, conv_name)
             out = conv_layer(out)
-            if verbose: print(f'shape after conv layer {i+1} is {out.shape}')
+            if verbose:
+                print(f'shape after conv layer {i+1} is {out.shape}')
             batch_name = f'batch{i+1}'
             batch_norm = getattr(self, batch_name)
             out = batch_norm(out)
-            if verbose: print(f'shape after batch layer {i+1} is {out.shape}')
+            if verbose:
+                print(f'shape after batch layer {i+1} is {out.shape}')
 
         for j in range(1, len(self.hidden_neurons_dense)-1):
             # print(F'moving on to dense')
             dense_name = f'dense{j+1}'
             dense_layer = getattr(self, dense_name)
             out = self.relu(dense_layer(out))
-            if verbose: print(f'shape after dense layer {j+1} is {out.shape}')
+            if verbose:
+                print(f'shape after dense layer {j+1} is {out.shape}')
 
         out = out = self.dropout(out)
 
@@ -128,7 +134,8 @@ class ParametricLSTMCNN(nn.Module):
         last_dense_layer = getattr(self, last_dense)
         out = last_dense_layer(out)
 
-        if verbose: print(f'output shape is {out.shape}')
+        if verbose:
+            print(f'output shape is {out.shape}')
         # print("its actually working - no way lets gooo")
 
         return out

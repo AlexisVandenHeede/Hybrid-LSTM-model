@@ -14,7 +14,7 @@ def train_evaluate(ga_individual_sol):
     P = BitArray(P).uint
     Q = BitArray(Q).uint
 
-    # resize hyperparams to be within range
+    # resize hyperparameterss to be within range
     R = R/1000
     P = np.interp(P, [0, 31], [0.00001, 0.1])
     Q = np.interp(Q, [0, 31], [0.00001, 0.1])

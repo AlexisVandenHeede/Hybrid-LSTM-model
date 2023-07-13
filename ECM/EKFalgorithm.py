@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 
 def EKF(r, p, q, battery_num):
-    # load actual data
+    # load actual data from file
     bat = []
     bat.append(pd.read_csv('data/' + battery_num + '_TTD.csv'))
     bat = pd.concat(bat)
@@ -20,7 +20,7 @@ def EKF(r, p, q, battery_num):
     soc_dat = dat['SOC']
     ocv_dat = dat['OCV']
 
-    # Load interpolants
+    # Load interpolant data
     interpolants = []
     interpolants.append(pd.read_excel('ECM/battery_model.xlsx'))
     interpolants = pd.concat(interpolants)
