@@ -24,20 +24,20 @@ def EKF(r, p, q, battery_num):
     interpolants = []
     interpolants.append(pd.read_excel('ECM/battery_model.xlsx'))
     interpolants = pd.concat(interpolants)
-    SOC = interpolants['SOC']
-    R0 = interpolants['R0']
-    R1 = interpolants['R1']
-    R2 = interpolants['R2']
-    C1 = interpolants['C1']
-    C2 = interpolants['C2']
-    T = interpolants['T']
+    SOC_dat = interpolants['SOC']
+    R0_dat = interpolants['R0']
+    R1_dat = interpolants['R1']
+    R2_dat = interpolants['R2']
+    C1_dat = interpolants['C1']
+    C2_dat = interpolants['C2']
+    T_dat = interpolants['T']
 
-    # interpolant functions 
-    F_R0 = s.interpolate.interp2d(SOC, T, R0, kind='cubic')
-    F_R1 = s.interpolate.interp2d(SOC, T, R1, kind='cubic')
-    F_R2 = s.interpolate.interp2d(SOC, T, R2, kind='cubic')
-    F_C1 = s.interpolate.interp2d(SOC, T, C1, kind='cubic')
-    F_C2 = s.interpolate.interp2d(SOC, T, C2, kind='cubic')
+    # # interpolant functions 
+    # F_R0 = s.interpolate.interp2d(SOC, T, R0, kind='cubic')
+    # F_R1 = s.interpolate.interp2d(SOC, T, R1, kind='cubic')
+    # F_R2 = s.interpolate.interp2d(SOC, T, R2, kind='cubic')
+    # F_C1 = s.interpolate.interp2d(SOC, T, C1, kind='cubic')
+    # F_C2 = s.interpolate.interp2d(SOC, T, C2, kind='cubic')
 
     # Load current and temperature data
     soc_init = 1
@@ -61,17 +61,23 @@ def EKF(r, p, q, battery_num):
 
     # EKF
     for k in range(ik):
-        T = temperature[k]
+        T_val = temperature[k]
         U = current[k]
         soc = X.item(0)
         V1 = X[1]
         V2 = X[2]
 
-        R0 = F_R0(soc, T)
-        R1 = F_R1(soc, T)
-        R2 = F_R2(soc, T)
-        C1 = F_C1(soc, T)
-        C2 = F_C2(soc, T)
+        # R0 = F_R0(soc, T)
+        # R1 = F_R1(soc, T)
+        # R2 = F_R2(soc, T)
+        # C1 = F_C1(soc, T)
+        # C2 = F_C2(soc, T)
+
+        R0 = s.interpolate.griddata((SOC_dat, T_dat), R0_dat, (soc, T_val), method='nearest')
+        R1 = s.interpolate.griddata((SOC_dat, T_dat), R1_dat, (soc, T_val), method='nearest')
+        R2 = s.interpolate.griddata((SOC_dat, T_dat), R2_dat, (soc, T_val), method='nearest')
+        C1 = s.interpolate.griddata((SOC_dat, T_dat), C1_dat, (soc, T_val), method='nearest')
+        C2 = s.interpolate.griddata((SOC_dat, T_dat), C2_dat, (soc, T_val), method='nearest')
 
         ocv_pred = sococv(np.array(soc))
 
@@ -112,7 +118,7 @@ def EKF(r, p, q, battery_num):
 
 # testing if the algorithm works
 # please uncomment this if you want to run the optimiser
-soc_est, vt_est, vt_err, vt_act, total_err = EKF(0.03, 0.0032354, 0.012911, 'B0005')  # best hyperparams from GA after 10 gen w/ popsize == 10
+soc_est, vt_est, vt_err, vt_act, total_err = EKF(0.025, 1e-5, 0.00646, 'B0005')  # best hyperparams from GA after 10 gen w/ popsize == 10
 plt.plot(vt_est, label='Estimated Voltage')
 plt.plot(vt_act, label='Actual Voltage')
 plt.legend()
