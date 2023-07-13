@@ -3,6 +3,7 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+import math
 
 
 def load_data_normalise(battery, model_type):
@@ -187,7 +188,7 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
         val_loss_history.append(val_loss)
         if verbose:
             val_loss = np.array(val_loss_history)
-            print(f"Epoch {i+1}: train loss = {train_loss:.10f}, val loss = {val_loss:.10f}")
+            print(f"Epoch {i+1}: train loss = {train_loss}, val loss = {val_loss}")
         # earlystopper
         if early_stopper.early_stop(val_loss):
             print("Early stopping")
@@ -212,7 +213,7 @@ class SeqDataset:
         self.batch = batch
 
     def __len__(self):
-        return np.ceil((len(self.x_data) / self.batch))
+        return math.ceil((len(self.x_data) / self.batch))
 
     def __getitem__(self, idx):
         start_idx = idx * self.batch
