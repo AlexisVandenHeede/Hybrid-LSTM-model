@@ -17,7 +17,7 @@ normalised_data, time_mean, time_std = load_data_normalise(battery, model_type)
 
 # data initialisation
 X_train, y_train, X_test, y_test, X_val, y_val = data_split(normalised_data, test_size=test_size, cv_size=cv_size, seq_length=seq_length)
-
+print(X_train.shape)
 # hyperparameters
 num_layers_conv = 1
 output_channels = [6]

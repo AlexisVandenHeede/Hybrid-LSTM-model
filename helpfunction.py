@@ -56,7 +56,7 @@ def data_split(normalised_data, test_size, cv_size, seq_length):
     for i in range(seq_length, len(X_train)):
         x_tr.append(X_train.values[i-seq_length:i])
         y_tr.append(y_train.values[i])
-        
+
     x_tr = torch.tensor(np.array(x_tr))
     y_tr = torch.tensor(y_tr).unsqueeze(1).unsqueeze(2)
 
@@ -78,7 +78,7 @@ def data_split(normalised_data, test_size, cv_size, seq_length):
     x_t = torch.tensor(np.array(x_t))
     y_t = torch.tensor(y_t).unsqueeze(1).unsqueeze(2)
 
-    if torch.cuda.is_available() == True:
+    if torch.cuda.is_available():
         print('Running on GPU')
         X_train = x_tr.to('cuda').float()
         y_train = y_tr.to('cuda').float()
@@ -230,7 +230,11 @@ class SeqDataset:
 
         return x, y
 
+
 def eval_model(model, X_test, y_test, criterion):
+    """
+    WIP
+    """
     model.eval()
     with torch.no_grad():
         y_pred = model(X_test)
