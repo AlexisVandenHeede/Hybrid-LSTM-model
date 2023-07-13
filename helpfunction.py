@@ -1,6 +1,9 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import numpy as np
+import matplotlib.pyplot as plt
+import torch
+
 
 def load_data_normalise(battery, model_type):
     """
@@ -11,7 +14,7 @@ def load_data_normalise(battery, model_type):
     if model_type == 'data':
         for i in battery:
             data.append(pd.read_csv("data/" + i + "_TTD.csv"))
-    elif model_typev == 'hybrid':
+    elif model_type == 'hybrid':
         for i in battery:
             data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
     else:
@@ -23,6 +26,7 @@ def load_data_normalise(battery, model_type):
     time_std = time.std(axis=0)
     normalised_data = (data - data.mean(axis=0)) / data.std(axis=0)
     return normalised_data, time_mean, time_std
+
 
 def train_test_validation_split(X, y, test_size, cv_size):
     """
@@ -40,14 +44,16 @@ def train_test_validation_split(X, y, test_size, cv_size):
     # return split data
     return X_train, y_train, X_test, y_test, X_cv, y_cv
 
+
 def data_split(normalised_data, test_size, cv_size):
     """ Split data into X Y  train, test and validation sets"""
     y = normalised_data['TTD']
     X = normalised_data.drop(['TTD', 'Time'], axis=1)
-    X_train, y_train, X_test, y_test, X_cv, y_cv  = train_test__validation_split(X, y, test_size, cv_size)
+    X_train, y_train, X_test, y_test, X_cv, y_cv = train_test_validation_split(X, y, test_size, cv_size)
     return X_train, y_train, X_test, y_test, X_cv, y_cv
 
-def testing_func(X_test, y_test):
+
+def testing_func(X_test, y_test, model, criterion):
     """
     Return the rmse of the prediction from X_test compared to y_test
     """
@@ -56,14 +62,15 @@ def testing_func(X_test, y_test):
     rmse_test = np.sqrt(criterion(y_test, y_predict).item())
     return rmse_test
 
+
 class EarlyStopper:
     def __init__(self, patience, min_delta):
         self.patience = patience
         self.min_delta = min_delta
         self.counter = 0
         self.min_validation_loss = np.inf
-    
-    def early_stop(self, validaiton_loss):
+
+    def early_stop(self, validation_loss):
         """Implement the early stopping criterion.
         The function has to return 'True' if the current validation loss (in the arguments) has increased
         with respect to the minimum value of more than 'min_delta' and for more than 'patience' steps.
@@ -81,6 +88,7 @@ class EarlyStopper:
             else:
                 return False
 
+
 def basis_func(scaling_factor, hidden_layers):
     """ Rescale hyperparameter per layer using basis function, now just np.arange"""
     basis = (np.arange(hidden_layers, dtype=int))*scaling_factor
@@ -93,6 +101,7 @@ def basis_func(scaling_factor, hidden_layers):
         basis_function.append(basis[i])
     return basis_function
 
+
 def trainbatch(model, train_dataloader, val_dataloader, n_epochs, lf, optimiser, verbose):
     """
     train model dataloaders, early stopper Class
@@ -101,28 +110,29 @@ def trainbatch(model, train_dataloader, val_dataloader, n_epochs, lf, optimiser,
     early_stopper = EarlyStopper(patience=10, min_delta=0.0001)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
-    model.train()
     with torch.no_grad():
         train_loss_history = []
         val_loss_history = []
 
-    for i in range(n_epoch):
+    for i in range(n_epochs):
         loss_v = 0
         loss = 0
         for l, (x, y) in enumerate(train_dataloader):
+            model.train()
             target_train = model(x)
-            loss_train = lf(target, y)
+            loss_train = lf(target_train, y)
             loss += loss_train.item()
             epoch.append(i+1)
             optimiser.zero_grad()
             loss_train.backward()
             optimiser.step()
-        
+
         for k, (x, y) in enumerate(val_dataloader):
+            model.eval()
             target_val = model(x)
             loss_val = lf(target_val, y)
             loss_v += loss_val.item()
-        
+
         train_loss = loss/len(train_dataloader)
         val_loss = loss_v/len(val_dataloader)
         train_loss_history.append(train_loss)
@@ -136,13 +146,15 @@ def trainbatch(model, train_dataloader, val_dataloader, n_epochs, lf, optimiser,
             break
         return model, train_loss_history, val_loss_history
 
+
 def plot_loss(train_loss_history, val_loss_history):
-    plt.plot(train_loss_history, label = 'train loss')
-    plt.plot(val_loss_history, label = 'val loss')
+    plt.plot(train_loss_history, label='train loss')
+    plt.plot(val_loss_history, label='val loss')
     plt.xlabel('epoch')
     plt.ylabel('loss')
     plt.legend()
     plt.show()
+
 
 class SeqDataset:
     def __init__(self, x_data, y_data, seq_len, batch):
@@ -164,8 +176,8 @@ class SeqDataset:
         if end_idx > len(self.x_data):
             x = self.x_data[start_idx:]
             y = self.y_data[start_idx:]
-    
+
         if x.shape[0] == 0:
             raise StopIteration
-        
+
         return x, y
