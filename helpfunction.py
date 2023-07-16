@@ -108,11 +108,10 @@ def data_split(
     return X_train, y_train, X_test, y_test, X_cv, y_cv
 
 
-def testing_func(X_test, y_test, model, criterion):
+def testing_func(X_test: torch.Tensor, y_test: torch.Tensor, model: torch.nn.Module, criterion):
     """
     Return the rmse of the prediction from X_test compared to y_test
     """
-    # NOTE: type hints probably not necessary here, this is fairly generic
     rmse_test = 0
     y_predict = model(X_test)
     rmse_test = np.sqrt(criterion(y_test, y_predict).item())
