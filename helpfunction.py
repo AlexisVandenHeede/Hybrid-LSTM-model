@@ -7,7 +7,7 @@ import math
 from custom_types import Model, Battery
 
 
-def load_data_normalise(battery_list: list[Battery], model_type: Model):
+def load_data_normalise(battery_list: list[Battery], model_type: Model) -> tuple[pd.DataFrame, float, float]:
     """
     Load the data and normalise it
     return: normalised data, mean time, std time
