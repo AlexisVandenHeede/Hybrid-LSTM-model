@@ -212,6 +212,8 @@ def plot_loss(train_loss_history, val_loss_history):
 
 
 class SeqDataset:
+    # TODO: check why this doesn't just use a dataloader as used in eg.
+    # https://pytorch.org/tutorials/beginner/data_loading_tutorial.html#iterating-through-the-dataset
     def __init__(self, x_data: torch.Tensor, y_data: torch.Tensor, seq_len: int, batch: int):
         self.x_data = x_data
         self.y_data = y_data
@@ -238,12 +240,12 @@ class SeqDataset:
         return x, y
 
 
-def eval_model(model, X_test, y_test, criterion):
+def eval_model(model: torch.nn.Module, X_test: torch.Tensor, y_test: torch.Tensor, criterion) -> float:
     """
     WIP
     """
     model.eval()
     with torch.no_grad():
         y_pred = model(X_test)
-        rmse = np.sqrt(criterion(y_test, y_pred).item())
+        rmse: float = np.sqrt(criterion(y_test, y_pred).item())
     return rmse
