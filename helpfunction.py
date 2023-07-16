@@ -198,7 +198,7 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
         if verbose:
-                print(f"Epoch {i+1}: train loss = {train_loss:.10f}, val loss = {val_loss:.10f}")
+            print(f"Epoch {i+1}: train loss = {train_loss:.10f}, val loss = {val_loss:.10f}")
         # earlystopper
         if early_stopper.early_stop(val_loss):
             print("Early stopping")
