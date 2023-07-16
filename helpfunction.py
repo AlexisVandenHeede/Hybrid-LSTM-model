@@ -20,8 +20,7 @@ def load_data_normalise(battery_list: list[Battery], model_type: Model):
         for i in battery_list:
             data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
     else:
-        print('wrong model type, either data or hybrid')
-        raise NameError
+        raise NameError('model type must be either data or hybrid')
     data = pd.concat(data)
     time = data['Time']
     time_mean = time.mean(axis=0)
