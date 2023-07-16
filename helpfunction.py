@@ -15,10 +15,10 @@ def load_data_normalise(battery_list: list[Battery], model_type: Model) -> tuple
     data_list: list[pd.DataFrame] = []
     if model_type == "data":
         for i in battery_list:
-            data_list.append(pd.read_csv("data/" + i + "_TTD1.csv"))
+            data_list.append(pd.read_csv(f"data/{i}_TTD1.csv"))
     elif model_type == "hybrid":
         for i in battery_list:
-            data_list.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
+            data_list.append(pd.read_csv(f"data/{i}_TTD - with SOC.csv"))
     else:
         raise NameError("model type must be either data or hybrid")
     data: pd.DataFrame = pd.concat(data_list)
