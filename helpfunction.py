@@ -115,6 +115,7 @@ def testing_func(X_test, y_test, model, criterion):
     """
     Return the rmse of the prediction from X_test compared to y_test
     """
+    # NOTE: type hints probably not necessary here, this is fairly generic
     rmse_test = 0
     y_predict = model(X_test)
     rmse_test = np.sqrt(criterion(y_test, y_predict).item())
@@ -149,6 +150,7 @@ class EarlyStopper:
 
 def basis_func(scaling_factor, hidden_layers):
     """ Rescale hyperparameter per layer using basis function, now just np.arange"""
+    # TODO: type hint once I (Jeremy) understand what this is doing
     basis = (np.arange(hidden_layers, dtype=int))*scaling_factor
     if hidden_layers == 1:
         basis[0] = 1
