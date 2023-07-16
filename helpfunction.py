@@ -34,7 +34,9 @@ def load_data_normalise(battery_list: list[Battery], model_type: Model) -> tuple
     return normalised_data, time_mean, time_std
 
 
-def train_test_validation_split(X, y, test_size, cv_size):
+def train_test_validation_split(
+        X: pd.DataFrame, y: pd.Series, test_size: float, cv_size: float
+) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
     """
     The sklearn {train_test_split} function to split the dataset (and the labels) into
     train, test and cross-validation sets
@@ -51,38 +53,40 @@ def train_test_validation_split(X, y, test_size, cv_size):
     return X_train, y_train, X_test, y_test, X_cv, y_cv
 
 
-def data_split(normalised_data, test_size, cv_size, seq_length):
+def data_split(
+        normalised_data: pd.DataFrame, test_size: float, cv_size: float, seq_length: int
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """ Split data into X Y  train, test and validation sets"""
     y = normalised_data['TTD']
     X = normalised_data.drop(['TTD', 'Time'], axis=1)
     X_train, y_train, X_test, y_test, X_cv, y_cv = train_test_validation_split(X, y, test_size, cv_size)
 
-    x_tr = []
-    y_tr = []
+    x_tr_list = []
+    y_tr_list = []
     for i in range(seq_length, len(X_train)):
-        x_tr.append(X_train.values[i-seq_length:i])
-        y_tr.append(y_train.values[i])
+        x_tr_list.append(X_train.values[i-seq_length:i])
+        y_tr_list.append(y_train.values[i])
 
-    x_tr = torch.tensor(np.array(x_tr))
-    y_tr = torch.tensor(y_tr).unsqueeze(1).unsqueeze(2)
+    x_tr = torch.tensor(np.array(x_tr_list))
+    y_tr = torch.tensor(y_tr_list).unsqueeze(1).unsqueeze(2)
 
-    x_v = []
-    y_v = []
+    x_v_list = []
+    y_v_list = []
     for i in range(seq_length, len(X_cv)):
-        x_v.append(X_cv.values[i-seq_length:i])
-        y_v.append(y_cv.values[i])
+        x_v_list.append(X_cv.values[i-seq_length:i])
+        y_v_list.append(y_cv.values[i])
 
-    x_v = torch.tensor(np.array(x_v))
-    y_v = torch.tensor(y_v).unsqueeze(1).unsqueeze(2)
+    x_v = torch.tensor(np.array(x_v_list))
+    y_v = torch.tensor(y_v_list).unsqueeze(1).unsqueeze(2)
 
-    x_t = []
-    y_t = []
+    x_t_list = []
+    y_t_list = []
     for i in range(seq_length, len(X_test)):
-        x_t.append(X_test.values[i-seq_length:i])
-        y_t.append(y_test.values[i])
+        x_t_list.append(X_test.values[i-seq_length:i])
+        y_t_list.append(y_test.values[i])
 
-    x_t = torch.tensor(np.array(x_t))
-    y_t = torch.tensor(y_t).unsqueeze(1).unsqueeze(2)
+    x_t = torch.tensor(np.array(x_t_list))
+    y_t = torch.tensor(y_t_list).unsqueeze(1).unsqueeze(2)
 
     if torch.cuda.is_available():
         print('Running on GPU')
