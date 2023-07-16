@@ -122,13 +122,13 @@ def testing_func(X_test, y_test, model, criterion):
 
 
 class EarlyStopper:
-    def __init__(self, patience, min_delta):
+    def __init__(self, patience: int, min_delta: float):
         self.patience = patience
         self.min_delta = min_delta
         self.counter = 0
         self.min_validation_loss = np.inf
 
-    def early_stop(self, validation_loss):
+    def early_stop(self, validation_loss: float) -> bool:
         """Implement the early stopping criterion.
         The function has to return 'True' if the current validation loss (in the arguments) has increased
         with respect to the minimum value of more than 'min_delta' and for more than 'patience' steps.
