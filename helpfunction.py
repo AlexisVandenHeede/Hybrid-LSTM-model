@@ -13,16 +13,16 @@ def load_data_normalise(battery_list: list[Battery], model_type: Model) -> tuple
     return: normalised data, mean time, std time
     """
     data_list: list[pd.DataFrame] = []
-    if model_type == 'data':
+    if model_type == "data":
         for i in battery_list:
             data_list.append(pd.read_csv("data/" + i + "_TTD1.csv"))
-    elif model_type == 'hybrid':
+    elif model_type == "hybrid":
         for i in battery_list:
             data_list.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
     else:
-        raise NameError('model type must be either data or hybrid')
+        raise NameError("model type must be either data or hybrid")
     data: pd.DataFrame = pd.concat(data_list)
-    time = data['Time']
+    time = data["Time"]
     time_mean = time.mean(axis=0)
     time_std = time.std(axis=0)
     normalised_data = (data - data.mean(axis=0)) / data.std(axis=0)
@@ -30,36 +30,38 @@ def load_data_normalise(battery_list: list[Battery], model_type: Model) -> tuple
 
 
 def train_test_validation_split(
-        X: pd.DataFrame, y: pd.Series, test_size: float, cv_size: float
+    X: pd.DataFrame, y: pd.Series, test_size: float, cv_size: float
 ) -> tuple[pd.DataFrame, pd.Series, pd.DataFrame, pd.Series, pd.DataFrame, pd.Series]:
     """
     The sklearn {train_test_split} function to split the dataset (and the labels) into
     train, test and cross-validation sets
     """
     X_train, X_test_cv, y_train, y_test_cv = train_test_split(
-        X, y, test_size=test_size+cv_size, shuffle=False, random_state=0)
+        X, y, test_size=test_size + cv_size, shuffle=False, random_state=0
+    )
 
-    test_size = test_size/(test_size+cv_size)
+    test_size = test_size / (test_size + cv_size)
 
     X_cv, X_test, y_cv, y_test = train_test_split(
-        X_test_cv, y_test_cv, test_size=test_size, shuffle=False, random_state=0)
+        X_test_cv, y_test_cv, test_size=test_size, shuffle=False, random_state=0
+    )
 
     # return split data
     return X_train, y_train, X_test, y_test, X_cv, y_cv
 
 
 def data_split(
-        normalised_data: pd.DataFrame, test_size: float, cv_size: float, seq_length: int
+    normalised_data: pd.DataFrame, test_size: float, cv_size: float, seq_length: int
 ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-    """ Split data into X Y  train, test and validation sets"""
-    y = normalised_data['TTD']
-    X = normalised_data.drop(['TTD', 'Time'], axis=1)
+    """Split data into X Y  train, test and validation sets"""
+    y = normalised_data["TTD"]
+    X = normalised_data.drop(["TTD", "Time"], axis=1)
     X_train, y_train, X_test, y_test, X_cv, y_cv = train_test_validation_split(X, y, test_size, cv_size)
 
     x_tr_list = []
     y_tr_list = []
     for i in range(seq_length, len(X_train)):
-        x_tr_list.append(X_train.values[i-seq_length:i])
+        x_tr_list.append(X_train.values[i - seq_length : i])
         y_tr_list.append(y_train.values[i])
 
     x_tr = torch.tensor(np.array(x_tr_list))
@@ -68,7 +70,7 @@ def data_split(
     x_v_list = []
     y_v_list = []
     for i in range(seq_length, len(X_cv)):
-        x_v_list.append(X_cv.values[i-seq_length:i])
+        x_v_list.append(X_cv.values[i - seq_length : i])
         y_v_list.append(y_cv.values[i])
 
     x_v = torch.tensor(np.array(x_v_list))
@@ -77,20 +79,20 @@ def data_split(
     x_t_list = []
     y_t_list = []
     for i in range(seq_length, len(X_test)):
-        x_t_list.append(X_test.values[i-seq_length:i])
+        x_t_list.append(X_test.values[i - seq_length : i])
         y_t_list.append(y_test.values[i])
 
     x_t = torch.tensor(np.array(x_t_list))
     y_t = torch.tensor(y_t_list).unsqueeze(1).unsqueeze(2)
 
     if torch.cuda.is_available():
-        print('Running on GPU')
-        X_train = x_tr.to('cuda').float()
-        y_train = y_tr.to('cuda').float()
-        X_test = x_t.to('cuda').float()
-        y_test = y_t.to('cuda').float()
-        X_cv = x_v.to('cuda').float()
-        y_cv = y_v.to('cuda').float()
+        print("Running on GPU")
+        X_train = x_tr.to("cuda").float()
+        y_train = y_tr.to("cuda").float()
+        X_test = x_t.to("cuda").float()
+        y_test = y_t.to("cuda").float()
+        X_cv = x_v.to("cuda").float()
+        y_cv = y_v.to("cuda").float()
         print("X_train and y_train are on GPU: ", X_train.is_cuda, y_train.is_cuda)
         print("X_test and y_test are on GPU: ", X_test.is_cuda, y_test.is_cuda)
         print("X_cv and y_cv are on GPU: ", X_cv.is_cuda, y_cv.is_cuda)
@@ -144,9 +146,9 @@ class EarlyStopper:
 
 
 def basis_func(scaling_factor, hidden_layers):
-    """ Rescale hyperparameter per layer using basis function, now just np.arange"""
+    """Rescale hyperparameter per layer using basis function, now just np.arange"""
     # TODO: type hint once I (Jeremy) understand what this is doing
-    basis = (np.arange(hidden_layers, dtype=int))*scaling_factor
+    basis = (np.arange(hidden_layers, dtype=int)) * scaling_factor
     if hidden_layers == 1:
         basis[0] = 1
     basis_function = []
@@ -172,24 +174,24 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
     for i in range(n_epoch):
         loss_v = 0
         loss = 0
-        for (x, y) in train_dataloader:
+        for x, y in train_dataloader:
             model.train()
             target_train = model(x)
             loss_train = lf(target_train, y)
             loss += loss_train.item()
-            epoch.append(i+1)
+            epoch.append(i + 1)
             optimiser.zero_grad()
             loss_train.backward()
             optimiser.step()
 
-        for (x, y) in val_dataloader:
+        for x, y in val_dataloader:
             model.eval()
             target_val = model(x)
             loss_val = lf(target_val, y)
             loss_v += loss_val.item()
 
-        train_loss = loss/len(train_dataloader)
-        val_loss = loss_v/len(val_dataloader)
+        train_loss = loss / len(train_dataloader)
+        val_loss = loss_v / len(val_dataloader)
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
         if verbose:
@@ -204,10 +206,10 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
 
 def plot_loss(train_loss_history, val_loss_history):
     plt.figure()
-    plt.plot(train_loss_history, label='train loss')
-    plt.plot(val_loss_history, label='val loss')
-    plt.xlabel('epoch')
-    plt.ylabel('loss')
+    plt.plot(train_loss_history, label="train loss")
+    plt.plot(val_loss_history, label="val loss")
+    plt.xlabel("epoch")
+    plt.ylabel("loss")
     plt.legend()
     plt.show()
 
