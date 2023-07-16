@@ -163,6 +163,7 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
     """
     train model dataloaders, early stopper Class
     """
+    # TODO: type hint following advice on SeqDataset (see comment below)
     epoch = []
     early_stopper = EarlyStopper(patience=10, min_delta=0.0001)
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
