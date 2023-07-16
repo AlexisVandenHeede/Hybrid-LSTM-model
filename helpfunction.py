@@ -217,7 +217,7 @@ def plot_loss(train_loss_history, val_loss_history):
 
 
 class SeqDataset:
-    def __init__(self, x_data, y_data, seq_len, batch):
+    def __init__(self, x_data: torch.Tensor, y_data: torch.Tensor, seq_len: int, batch: int):
         self.x_data = x_data
         self.y_data = y_data
         self.seq_len = seq_len
@@ -226,16 +226,16 @@ class SeqDataset:
     def __len__(self):
         return math.ceil((len(self.x_data) / self.batch))
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx: int):
         start_idx = idx * self.batch
         end_idx = start_idx + self.batch
-
-        x = self.x_data[start_idx:end_idx]
-        y = self.y_data[start_idx:end_idx]
 
         if end_idx > len(self.x_data):
             x = self.x_data[start_idx:]
             y = self.y_data[start_idx:]
+        else:
+            x = self.x_data[start_idx:end_idx]
+            y = self.y_data[start_idx:end_idx]
 
         if x.shape[0] == 0:
             raise StopIteration
