@@ -4,19 +4,20 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import math
+from custom_types import Model, Battery
 
 
-def load_data_normalise(battery, model_type):
+def load_data_normalise(battery_list: list[Battery], model_type: Model):
     """
     Load the data and normalise it
     return: normalised data, mean time, std time
     """
     data = []
     if model_type == 'data':
-        for i in battery:
+        for i in battery_list:
             data.append(pd.read_csv("data/" + i + "_TTD1.csv"))
     elif model_type == 'hybrid':
-        for i in battery:
+        for i in battery_list:
             data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
     else:
         print('wrong model type, either data or hybrid')
