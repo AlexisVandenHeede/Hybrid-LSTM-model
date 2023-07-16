@@ -4,7 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import math
+from typing import TypeVar
 from custom_types import Model, Battery
+
+
+XT = TypeVar('XT')
+YT = TypeVar('YT')
 
 
 def load_data_normalise(battery_list: list[Battery], model_type: Model) -> tuple[pd.DataFrame, float, float]:
@@ -12,16 +17,16 @@ def load_data_normalise(battery_list: list[Battery], model_type: Model) -> tuple
     Load the data and normalise it
     return: normalised data, mean time, std time
     """
-    data = []
+    data_list: list[pd.DataFrame] = []
     if model_type == 'data':
         for i in battery_list:
-            data.append(pd.read_csv("data/" + i + "_TTD1.csv"))
+            data_list.append(pd.read_csv("data/" + i + "_TTD1.csv"))
     elif model_type == 'hybrid':
         for i in battery_list:
-            data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
+            data_list.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
     else:
         raise NameError('model type must be either data or hybrid')
-    data = pd.concat(data)
+    data: pd.DataFrame = pd.concat(data_list)
     time = data['Time']
     time_mean = time.mean(axis=0)
     time_std = time.std(axis=0)
