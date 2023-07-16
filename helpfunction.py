@@ -4,12 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 import math
-from typing import TypeVar
 from custom_types import Model, Battery
-
-
-XT = TypeVar('XT')
-YT = TypeVar('YT')
 
 
 def load_data_normalise(battery_list: list[Battery], model_type: Model) -> tuple[pd.DataFrame, float, float]:
