@@ -203,6 +203,7 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
 
 
 def plot_loss(train_loss_history, val_loss_history):
+    plt.figure()
     plt.plot(train_loss_history, label='train loss')
     plt.plot(val_loss_history, label='val loss')
     plt.xlabel('epoch')
