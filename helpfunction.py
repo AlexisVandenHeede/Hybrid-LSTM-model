@@ -172,7 +172,7 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
     for i in range(n_epoch):
         loss_v = 0
         loss = 0
-        for l, (x, y) in enumerate(train_dataloader):
+        for (x, y) in train_dataloader:
             model.train()
             target_train = model(x)
             loss_train = lf(target_train, y)
@@ -182,7 +182,7 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
             loss_train.backward()
             optimiser.step()
 
-        for k, (x, y) in enumerate(val_dataloader):
+        for (x, y) in val_dataloader:
             model.eval()
             target_val = model(x)
             loss_val = lf(target_val, y)
