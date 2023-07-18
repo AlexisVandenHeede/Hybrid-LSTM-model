@@ -1,4 +1,4 @@
-from helpfunction import load_data_normalise, data_split, SeqDataset, train_batch
+from helpfunction import load_data_normalise, data_split, SeqDataset, train_batch, plot_loss
 from ParametricLSTMCNN import ParametricLSTMCNN
 import torch
 
@@ -48,5 +48,7 @@ train_dataset.to(device)
 validation_dataset.to(device)
 # test_dataset.to(device)
 """
+
 # Training model
-model, train_loss_history, val_loss_history = train_batch(model, train_dataloader=train_dataset, val_dataloader=validation_dataset, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
+model, train_loss_history, val_loss_history = train_batch(model, train_dataset, validation_dataset, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
+plot_loss(train_loss_history, val_loss_history)
