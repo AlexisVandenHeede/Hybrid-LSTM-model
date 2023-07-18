@@ -1,29 +1,42 @@
 import numpy as np
-from EKFalgorithm import EKF
+from EKFalgorithm import ECM
 from deap import base, creator, tools, algorithms
 from scipy.stats import poisson  # check if poisson actually makes a difference or if bernoulli should be used
 from bitstring import BitArray
 
 
 def train_evaluate(ga_individual_sol):
-    gene_length = 5
+    gene_length = 8
     R = ga_individual_sol[0:gene_length]
-    P = ga_individual_sol[gene_length:2*gene_length]
-    Q = ga_individual_sol[2*gene_length:3*gene_length]
+    P1 = ga_individual_sol[gene_length:2*gene_length]
+    P2 = ga_individual_sol[2*gene_length:3*gene_length]
+    P3 = ga_individual_sol[3*gene_length:4*gene_length]
+    Q1 = ga_individual_sol[2*gene_length:3*gene_length]
+    Q2 = ga_individual_sol[3*gene_length:4*gene_length]
+    Q3 = ga_individual_sol[4*gene_length:5*gene_length]
     R = BitArray(R).uint
-    P = BitArray(P).uint
-    Q = BitArray(Q).uint
+    P1 = BitArray(P1).uint
+    P2 = BitArray(P2).uint
+    P3 = BitArray(P3).uint
+    Q1 = BitArray(Q1).uint
+    Q2 = BitArray(Q2).uint
+    Q3 = BitArray(Q3).uint
 
     # resize hyperparameterss to be within range
-    R = R/1000
-    P = np.interp(P, [0, 31], [0.00001, 0.1])
-    Q = np.interp(Q, [0, 31], [0.00001, 0.1])
+    R = np.interp(R, [0, 2**gene_length-1], [1e-5, 1])
+    P1 = np.interp(P1, [0, 2**gene_length-1], [1e-5, 1])
+    P2 = np.interp(P2, [0, 2**gene_length-1], [1e-5, 1])
+    P3 = np.interp(P3, [0, 2**gene_length-1], [1e-5, 1])
+    Q1 = np.interp(Q1, [0, 2**gene_length-1], [1e-5, 1])
+    Q2 = np.interp(Q2, [0, 2**gene_length-1], [1e-5, 1])
+    Q3 = np.interp(Q3, [0, 2**gene_length-1], [1e-5, 1])
 
-    print(f'R = {R}, P = {P}, Q = {Q}')
+    print(f'R = {R}, P1 = {P1}, P2 = {P2}, P3 = {P3}, Q1 = {Q1}, Q2 = {Q2}, Q3 = {Q3}')
 
     # Run EKF
     try:
-        soc_est, vt_est, vt_err, vt_act, total_err = EKF(R, P, Q, 'B0005')
+        ecm = ECM(R, P1, P2, P3, Q1, Q2, Q3, 'B0005')
+        soc_est, vt_est, vt_err, total_err = ecm.EKF(with_discharge_cycles=False)
     except np.linalg.LinAlgError:
         total_err = 1000000
 
@@ -39,8 +52,8 @@ if __name__ == '__main__':
     # set population size
     popsize = 10
     # set gene length
-    gene_length = 5
-    entire_length = 3*gene_length
+    gene_length = 8
+    entire_length = 7*gene_length
 
     # basically creates classes for the fitness and individual
     creator.create('FitnessMax', base.Fitness, weights=[-1.0])
