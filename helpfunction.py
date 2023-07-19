@@ -253,7 +253,7 @@ class SeqDataset:
         self.batch = batch
 
     def __len__(self):
-        return math.ceil((len(self.x_data) / self.batch))
+        return np.ceil((len(self.x_data) / self.batch)).astype('int')
 
     def __getitem__(self, idx):
         start_idx = idx * self.batch
