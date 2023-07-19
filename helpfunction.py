@@ -6,6 +6,36 @@ import torch
 import math
 
 
+def create_time_padding(battery, model_type, n):
+    '''
+    Will time pad sawtooth functions with n data points before and after.
+    '''
+    data = []
+    if model_type == 'data':
+        for i in battery:
+            data.append(pd.read_csv("data/" + i + "_TTD1.csv"))
+    elif model_type == 'hybrid':
+        for i in battery:
+            data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
+    TTD = data('TTD')
+    index_jumps = TTD.where(TTD == 0, 1)
+    new_cycle = TTD.where(TTD.diff() < 0, 1)
+    new_cycle[0] = 1
+    new_cycle[new_cycle != 1] = 0
+    new_cycle *= n
+    index_jumps = index_jumps.replace({0:1, 1:0}) * n
+    # print(f'index_jumps = {index_jumps}')
+    # print(data)
+    new_data = data.index.repeat(index_jumps)
+    # print(new_data)
+    new_data = pd.concat([data, data.iloc[new_data]])
+    new_data_1 = data.index.repeat(new_cycle)
+    new_data = pd.concat([new_data, data.iloc[new_data_1]])
+    # print(new_data)
+    new_data.sort_index(inplace=True)
+    return new_data.reset_index()
+
+
 def load_data_normalise(battery, model_type):
     """
     Load the data and normalise it
@@ -204,6 +234,16 @@ def plot_loss(train_loss_history, val_loss_history):
     plt.legend()
     plt.show()
 
+
+def plot_predictions(model, X_test, y_test, model_type):
+    predictions = model(X_test)
+    plt.plot(y_test.squeeze(), label='Actual')
+    plt.plot(predictions.detach().squeeze(), label='Prediction')
+    plt.xlabel('Time')
+    plt.ylabel('TTD')
+    plt.legend()
+    plt.title(f'Predictions vs Actual for {model_type} model')
+    plt.show()
 
 class SeqDataset:
     def __init__(self, x_data, y_data, seq_len, batch):
