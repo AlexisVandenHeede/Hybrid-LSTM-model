@@ -1,3 +1,7 @@
+# Ignore these for now until project is to be restructured into installable package
+pyproject.toml
+tox.ini
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
