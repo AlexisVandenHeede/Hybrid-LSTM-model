@@ -244,6 +244,16 @@ def plot_loss(train_loss_history, val_loss_history):
     plt.show()
 
 
+def plot_predictions(model, X_test, y_test, model_type):
+    predictions = model(X_test)
+    plt.plot(y_test.squeeze(), label='Actual')
+    plt.plot(predictions.detach().squeeze(), label='Prediction')
+    plt.xlabel('Time')
+    plt.ylabel('TTD')
+    plt.legend()
+    plt.title(f'Predictions vs Actual for {model_type} model')
+    plt.show()
+
 class SeqDataset:
     # TODO: check why this doesn't just use a dataloader as used in eg.
     # https://pytorch.org/tutorials/beginner/data_loading_tutorial.html#iterating-through-the-dataset
@@ -254,7 +264,7 @@ class SeqDataset:
         self.batch = batch
 
     def __len__(self):
-        return math.ceil((len(self.x_data) / self.batch))
+        return np.ceil((len(self.x_data) / self.batch)).astype('int')
 
     def __getitem__(self, idx: int):
         start_idx = idx * self.batch
