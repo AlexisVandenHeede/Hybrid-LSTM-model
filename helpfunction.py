@@ -11,6 +11,7 @@ def create_time_padding(battery, model_type, n):
     '''
     Will time pad sawtooth functions with n data points before and after.
     '''
+    # TODO: type hint and fix errors (square brackets for index?)
     data = []
     if model_type == 'data':
         for i in battery:
