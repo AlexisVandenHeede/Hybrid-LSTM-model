@@ -17,6 +17,7 @@ def create_time_padding(battery, model_type, n):
     elif model_type == 'hybrid':
         for i in battery:
             data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
+    pd.concat(data)
     TTD = data('TTD')
     index_jumps = TTD.where(TTD == 0, 1)
     new_cycle = TTD.where(TTD.diff() < 0, 1)
