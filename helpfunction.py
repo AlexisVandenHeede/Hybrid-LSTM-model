@@ -53,7 +53,7 @@ def load_data_normalise(battery, model_type):
     elif model_type == 'data_padded':
         for i in battery:
             data.append(pd.read_csv(f"data/padded_data_data_['{i}'].csv"))
-    elif model_type == 'hyrbid_padded':
+    elif model_type == 'hybrid_padded':
         for i in battery:
             data.append(pd.read_csv(f"data/padded_data_hybrid_['{i}'].csv"))
     else:
@@ -90,16 +90,20 @@ def data_split(normalised_data, test_size, cv_size, seq_length):
     y = normalised_data['TTD']
     X = normalised_data.drop(['TTD', 'Time'], axis=1)
     X_train, y_train, X_test, y_test, X_cv, y_cv = train_test_validation_split(X, y, test_size, cv_size)
-
+    print('1')
     x_tr = []
     y_tr = []
-    for i in range(seq_length, len(X_train)):
-        x_tr.append(X_train.values[i-seq_length:i])
-        y_tr.append(y_train.values[i])
-
+    # this for loop is very inefficient, as it fills ram
+    # for i in range(seq_length, len(X_train)):
+    #     print('2')
+    #     x_tr.append(X_train.values[i-seq_length:i])
+    #     y_tr.append(y_train.values[i])
+    x_tr = X_train.values[seq_length:]
+    y_tr = y_train.values[seq_length:]
+    x_tr = np.array([x_tr[i-seq_length:i] for i in range(seq_length, len(x_tr))])
     x_tr = torch.tensor(np.array(x_tr))
     y_tr = torch.tensor(y_tr).unsqueeze(1).unsqueeze(2)
-
+    print('2')
     x_v = []
     y_v = []
     for i in range(seq_length, len(X_cv)):
@@ -108,7 +112,7 @@ def data_split(normalised_data, test_size, cv_size, seq_length):
 
     x_v = torch.tensor(np.array(x_v))
     y_v = torch.tensor(y_v).unsqueeze(1).unsqueeze(2)
-
+    print('3')
     x_t = []
     y_t = []
     for i in range(seq_length, len(X_test)):
@@ -246,6 +250,8 @@ def plot_loss(train_loss_history, val_loss_history):
 
 def plot_predictions(model, X_test, y_test, model_type):
     predictions = model(X_test)
+    predictions = predictions.cpu()
+    y_test = y_test.cpu()
     plt.plot(y_test.squeeze(), label='Actual')
     plt.plot(predictions.detach().squeeze(), label='Prediction')
     plt.xlabel('Time')
@@ -253,6 +259,7 @@ def plot_predictions(model, X_test, y_test, model_type):
     plt.legend()
     plt.title(f'Predictions vs Actual for {model_type} model')
     plt.show()
+
 
 class SeqDataset:
     def __init__(self, x_data, y_data, seq_len, batch):

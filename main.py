@@ -3,8 +3,8 @@ from ParametricLSTMCNN import ParametricLSTMCNN
 import torch
 
 verbose = True
-battery = ['B0006']
-model_type = 'hyrbid_padded'
+battery = ['B0005']
+model_type = 'hybrid_padded'
 n_epoch = 50
 test_size = 0.1
 cv_size = 0.1
