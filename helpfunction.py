@@ -3,7 +3,6 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
-import math
 
 
 def create_time_padding(battery, model_type, n):
@@ -17,8 +16,8 @@ def create_time_padding(battery, model_type, n):
     elif model_type == 'hybrid':
         for i in battery:
             data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
-    pd.concat(data)
-    TTD = data('TTD')
+    data = pd.concat(data)
+    TTD = data['TTD']
     index_jumps = TTD.where(TTD == 0, 1)
     new_cycle = TTD.where(TTD.diff() < 0, 1)
     new_cycle[0] = 1
@@ -34,7 +33,9 @@ def create_time_padding(battery, model_type, n):
     new_data = pd.concat([new_data, data.iloc[new_data_1]])
     # print(new_data)
     new_data.sort_index(inplace=True)
-    return new_data.reset_index()
+    new_data.reset_index().to_csv(f'data/padded_data_{model_type}_{battery}.csv')
+    return print(f'padded data saved')
+
 
 
 def load_data_normalise(battery, model_type):
@@ -49,9 +50,16 @@ def load_data_normalise(battery, model_type):
     elif model_type == 'hybrid':
         for i in battery:
             data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
+    elif model_type == 'data_padded':
+        for i in battery:
+            data.append(pd.read_csv(f"data/padded_data_data_['{i}'].csv"))
+    elif model_type == 'hyrbid_padded':
+        for i in battery:
+            data.append(pd.read_csv(f"data/padded_data_hybrid_['{i}'].csv"))
     else:
-        print('wrong model type, either data or hybrid')
+        print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
         raise NameError
+    print('read data')
     data = pd.concat(data)
     time = data['Time']
     time_mean = time.mean(axis=0)

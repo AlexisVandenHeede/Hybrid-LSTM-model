@@ -6,10 +6,15 @@
 # print(f'CUDNN version: {torch.backends.cudnn.version()}')
 # print(f'Available GPU devices: {torch.cuda.device_count()}')
 # print(f'Device Name: {torch.cuda.get_device_name()}')
-import pandas as pd
-import numpy as np
+# import pandas as pd
+# import numpy as np
 
 
+from helpfunction import create_time_padding
+
+# ['B0006', 'B0007', 'B0018'],
+create_time_padding(['B0005'], 'hybrid', 10)
+"""
 def create_time_padding(battery, model_type, n):
     '''
     Will time pad sawtooth functions with n data points before and after.
@@ -89,3 +94,4 @@ data.sort_index(inplace=True)
 print(data)
 '''
 
+"""

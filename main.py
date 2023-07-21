@@ -1,10 +1,10 @@
-from helpfunction import load_data_normalise, data_split, SeqDataset, train_batch, plot_loss, plot_predictions
+from helpfunction import load_data_normalise, data_split, SeqDataset, train_batch, plot_loss, plot_predictions, create_time_padding
 from ParametricLSTMCNN import ParametricLSTMCNN
 import torch
 
 verbose = True
-battery = ['B0006', 'B0007', 'B0018']
-model_type = 'data'
+battery = ['B0006']
+model_type = 'hyrbid_padded'
 n_epoch = 50
 test_size = 0.1
 cv_size = 0.1
@@ -14,7 +14,8 @@ batch_size = 600
 if verbose:
     print(f'model type is {model_type}')
 normalised_data, time_mean, time_std = load_data_normalise(battery, model_type)
-
+# pad_data = create_time_padding(normalised_data, n=5)
+# print(f'data is paddded')
 # data initialisation
 X_train, y_train, X_test, y_test, X_val, y_val = data_split(normalised_data, test_size=test_size, cv_size=cv_size, seq_length=seq_length)
 # hyperparameters
