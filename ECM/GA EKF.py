@@ -1,7 +1,7 @@
 import numpy as np
 from EKFalgorithm import ECM
 from deap import base, creator, tools, algorithms
-from scipy.stats import poisson  # check if poisson actually makes a difference or if bernoulli should be used
+from scipy.stats import bernoulli  # check if poisson actually makes a difference or if bernoulli should be used
 from bitstring import BitArray
 
 
@@ -23,20 +23,20 @@ def train_evaluate(ga_individual_sol):
     Q3 = BitArray(Q3).uint
 
     # resize hyperparameterss to be within range
-    R = np.interp(R, [0, 2**gene_length-1], [1e-5, 1])
-    P1 = np.interp(P1, [0, 2**gene_length-1], [1e-5, 1])
-    P2 = np.interp(P2, [0, 2**gene_length-1], [1e-5, 1])
-    P3 = np.interp(P3, [0, 2**gene_length-1], [1e-5, 1])
-    Q1 = np.interp(Q1, [0, 2**gene_length-1], [1e-5, 1])
-    Q2 = np.interp(Q2, [0, 2**gene_length-1], [1e-5, 1])
-    Q3 = np.interp(Q3, [0, 2**gene_length-1], [1e-5, 1])
+    R = np.interp(R, [0, 2**gene_length-1], [1e-5, 10])
+    P1 = np.interp(P1, [0, 2**gene_length-1], [1e-5, 10])
+    P2 = np.interp(P2, [0, 2**gene_length-1], [1e-5, 10])
+    P3 = np.interp(P3, [0, 2**gene_length-1], [1e-5, 10])
+    Q1 = np.interp(Q1, [0, 2**gene_length-1], [1e-5, 10])
+    Q2 = np.interp(Q2, [0, 2**gene_length-1], [1e-5, 10])
+    Q3 = np.interp(Q3, [0, 2**gene_length-1], [1e-5, 10])
 
     print(f'R = {R}, P1 = {P1}, P2 = {P2}, P3 = {P3}, Q1 = {Q1}, Q2 = {Q2}, Q3 = {Q3}')
 
     # Run EKF
     try:
         ecm = ECM(R, P1, P2, P3, Q1, Q2, Q3, 'B0005')
-        soc_est, vt_est, vt_err, total_err = ecm.EKF(with_discharge_cycles=False)
+        soc_est, vt_est, vt_err, total_err = ecm.EKF(with_discharge_cycles=True, save_plot=False)
     except np.linalg.LinAlgError:
         total_err = 1000000
 
@@ -46,9 +46,9 @@ def train_evaluate(ga_individual_sol):
 if __name__ == '__main__':
     # init variables of ga using deap
     # set seed for reproducibility
-    np.random.seed(7)
+    np.random.seed(121)
     # set number of generations
-    ngen = 10
+    ngen = 70
     # set population size
     popsize = 10
     # set gene length
@@ -61,14 +61,14 @@ if __name__ == '__main__':
 
     # create toolbox & initialize population (bernoulli random variables)
     toolbox = base.Toolbox()
-    toolbox.register("binary", poisson.rvs, 0.5)
-    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.binary, n=entire_length)
+    toolbox.register("attr_bool", bernoulli.rvs, 0.5)
+    toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_bool, n=entire_length)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
     # ordered cross over for mating
     toolbox.register("mate", tools.cxOrdered)
     # mutation
-    toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.6)
+    toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.8)
     # selection algorithm
     toolbox.register("select", tools.selTournament, tournsize=int(popsize/2))
     # evaluation fitness of individuals
