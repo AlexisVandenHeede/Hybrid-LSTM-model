@@ -16,8 +16,8 @@ battery = ['B0005']
 
 data = pd.read_csv("data/B0005_TTD - with SOC.csv")
 data_padded = pd.read_csv(f'data/padded_data_hybrid_{battery}.csv')
-print(len(data))
-print(len(data_padded))
+print(len(data_padded['Voltage']))
+print(len(data_padded['TTD']))
 # from helpfunction import create_time_padding
 
 # ['B0006', 'B0007', 'B0018'],

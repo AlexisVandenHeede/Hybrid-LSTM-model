@@ -90,7 +90,6 @@ def data_split(normalised_data, test_size, cv_size, seq_length):
     y = normalised_data['TTD']
     X = normalised_data.drop(['TTD', 'Time'], axis=1)
     X_train, y_train, X_test, y_test, X_cv, y_cv = train_test_validation_split(X, y, test_size, cv_size)
-    print('1')
     x_tr = []
     y_tr = []
     # this for loop is very inefficient, as it fills ram
@@ -103,7 +102,6 @@ def data_split(normalised_data, test_size, cv_size, seq_length):
     x_tr = np.array([x_tr[i-seq_length:i] for i in range(seq_length, len(x_tr))])
     x_tr = torch.tensor(np.array(x_tr))
     y_tr = torch.tensor(y_tr).unsqueeze(1).unsqueeze(2)
-    print('2')
     x_v = []
     y_v = []
     for i in range(seq_length, len(X_cv)):
@@ -112,7 +110,6 @@ def data_split(normalised_data, test_size, cv_size, seq_length):
 
     x_v = torch.tensor(np.array(x_v))
     y_v = torch.tensor(y_v).unsqueeze(1).unsqueeze(2)
-    print('3')
     x_t = []
     y_t = []
     for i in range(seq_length, len(X_test)):
@@ -212,6 +209,8 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
         for l, (x, y) in enumerate(train_dataloader):
             model.train()
             target_train = model(x)
+            print(f'len of target_train is {len(target_train)}')
+            print(f'len of y is {len(y)}')
             loss_train = lf(target_train, y)
             loss += loss_train.item()
             epoch.append(i+1)
