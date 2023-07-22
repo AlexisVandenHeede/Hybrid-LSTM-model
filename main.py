@@ -1,9 +1,9 @@
-from helpfunction import load_data_normalise, data_split, SeqDataset, train_batch, plot_loss, plot_predictions, create_time_padding
+from helpfunction import load_data_normalise, data_split, SeqDataset, train_batch, plot_loss, plot_predictions
 from ParametricLSTMCNN import ParametricLSTMCNN
 import torch
 
 verbose = True
-battery = ['B0005']
+battery = ['B0005', 'B0006', 'B0007', 'B0018']
 model_type = 'hybrid_padded'
 n_epoch = 50
 test_size = 0.1
