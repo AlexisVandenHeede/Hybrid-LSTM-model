@@ -14,7 +14,7 @@ class ParametricLSTMCNN(nn.Module):
         self.num_layer_lstm = num_layers_lstm
         self.hidden_neurons_dense = hidden_neurons_dense
         self.seq = seq
-        self.inputlstm = inputlstm       
+        self.inputlstm = inputlstm
         self.output_shape = []
         for i in range(self.num_layers_conv):
             if i == 0:
@@ -44,7 +44,7 @@ class ParametricLSTMCNN(nn.Module):
             self.lstm = nn.LSTM(self.inputlstm, self.hidden_size_lstm, num_layers=self.num_layer_lstm, batch_first=True, dropout=0.2)  # changed the input becasue the data from physical model is different
 
             # then dense
-            self.dense1 = nn.Linear(self.hidden_size_lstm, self.hidden_neurons_dense[0])  
+            self.dense1 = nn.Linear(self.hidden_size_lstm, self.hidden_neurons_dense[0])
             # set the conv and batchnorm layers
             for i in range(1, self.num_layers_conv+1):
                 if i == 1:
@@ -54,14 +54,14 @@ class ParametricLSTMCNN(nn.Module):
                     else:
                         self.conv1 = nn.Conv1d(in_channels=self.seq, out_channels=self.output_channels[i-1], kernel_size=self.kernel_sizes[i-1], stride=self.stride_sizes[i-1], padding=self.padding_sizes[i-1])
                         self.batch1 = nn.BatchNorm1d(self.output_channels[i-1])
-                elif i == self.num_layers_conv:                   
+                elif i == self.num_layers_conv:
                     setattr(self, 'conv'+str(i), nn.Conv1d(in_channels=self.output_channels[i-2], out_channels=1, kernel_size=int(self.kernel_sizes[i-1]), stride=self.stride_sizes[i-1], padding=self.padding_sizes[i-1]))
                     setattr(self, 'batch'+str(i), nn.BatchNorm1d(1))
                 else:
                     setattr(self, 'conv'+str(i), nn.Conv1d(in_channels=int(self.output_channels[i-2]), out_channels=self.output_channels[i-1], kernel_size=int(self.kernel_sizes[i-1]), stride=self.stride_sizes[i-1], padding=self.padding_sizes[i-1]))
                     setattr(self, 'batch'+str(i), nn.BatchNorm1d(self.output_channels[i-1]))
 
-            # dense layers after conv 
+            # dense layers after conv
             for i in range(2, len(self.hidden_neurons_dense)+1):
                 if i == 2:
                     setattr(self, 'dense'+str(i), nn.Linear(int(self.output_shape[-1]), int(self.hidden_neurons_dense[1])))
@@ -87,7 +87,7 @@ class ParametricLSTMCNN(nn.Module):
         nn.init.xavier_normal_(self.lstm.weight)
 
         for i in range(self.num_layers_conv):
-            conv_name = f'conv{i+1}' 
+            conv_name = f'conv{i+1}'
             conv_layer = getattr(self, conv_name)
             nn.init.xavier_normal_(conv_layer.weight)
 
@@ -103,7 +103,7 @@ class ParametricLSTMCNN(nn.Module):
         output, (hn, cn) = self.lstm(x, (h_0, c_0))  # lstm with input, hidden, and internal state
         if verbose:
             print(f'shape after lstm is {output.shape}')
-        # output of first dense layer 
+        # output of first dense layer
         out = self.relu(self.dense1(self.relu(output)))
         if verbose:
             print(f'shape after first dense layer is {out.shape}')

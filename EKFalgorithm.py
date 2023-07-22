@@ -15,7 +15,7 @@ class ECM():
         self.q3 = q3
         self.battery_num = battery_num
 
-        # load interpolant data 
+        # load interpolant data
         self.dat = []
         self.dat.append(pd.read_excel('ECM/SOC_OCV_data.xlsx'))
         self.dat = pd.concat(self.dat)
@@ -47,7 +47,7 @@ class ECM():
                 indx.append(i+2)
         indx = np.array(indx)
         return indx
-      
+
     def EKF(self, with_discharge_cycles=False, save_plot=False):
         # Initial conditions
         soc_init = 1
@@ -107,7 +107,7 @@ class ECM():
                     b1 = (R1 * (1-a1)).item(0)
                     b2 = (R2 * (1-a2)).item(0)
 
-                    terminal_voltage = ocv_pred - R0 * U - V1 - V2 
+                    terminal_voltage = ocv_pred - R0 * U - V1 - V2
 
                     dOCV = dsococv(soc)
 
@@ -178,7 +178,7 @@ class ECM():
                 b1 = (R1 * (1-a1)).item(0)
                 b2 = (R2 * (1-a2)).item(0)
 
-                terminal_voltage = ocv_pred - R0 * U - V1 - V2 
+                terminal_voltage = ocv_pred - R0 * U - V1 - V2
 
                 dOCV = dsococv(soc)
 
