@@ -52,10 +52,10 @@ def load_data_normalise(battery, model_type):
             data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
     elif model_type == 'data_padded':
         for i in battery:
-            data.append(pd.read_csv(f"data/padded_data_data_['{i}'].csv"))
+            data.append(pd.read_csv(f"data/padded_data_data_[{i}].csv"))
     elif model_type == 'hybrid_padded':
         for i in battery:
-            data.append(pd.read_csv(f"data/padded_data_hybrid_['{i}'].csv"))
+            data.append(pd.read_csv(f"data/padded_data_hybrid_[{i}].csv"))
     else:
         print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
         raise NameError
