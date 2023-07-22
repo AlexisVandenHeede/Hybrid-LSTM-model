@@ -81,6 +81,8 @@ class ECM():
             Vt_act = self.bat['Voltage_measured'][idx[i]+1:idx[i+1]-1]
             indx = []
             Vt_act_plot = []
+            soc_init = 0.85
+            X = np.matrix([[soc_init], [0], [0]])
 
             for k in range(len(current)):
                 T_val = temperature[k+idx[i]+1]
@@ -123,11 +125,11 @@ class ECM():
                 P_x = (np.eye(3) - Kalman_gain*C_x)*P_x
             
             # remove extra data points
-            Vt_est = Vt_est[10:]
-            Vt_err = Vt_err[10:]
-            SOC_est = SOC_est[10:]
-            indx = indx[10:]
-            Vt_act_plot = Vt_act_plot[10:]
+            Vt_est = Vt_est[15:]
+            Vt_err = Vt_err[15:]
+            SOC_est = SOC_est[15:]
+            indx = indx[15:]
+            Vt_act_plot = Vt_act_plot[15:]
             total_err += np.sum(np.square(Vt_err))
 
             if save_plot:
@@ -145,7 +147,7 @@ class ECM():
                 plt.plot(indx, SOC_est, 'b')
                 plt.xlabel('Instance')
                 plt.ylabel('SOC')
-            
+           
             if save_data:
                 for p in range(len(SOC_est)):
                     self.main_data_soc.append(SOC_est[p])
@@ -155,7 +157,7 @@ class ECM():
         total_err = total_err/(len(idx)-1)
         print(f'MSE is {total_err}')
         return SOC_est, Vt_est, Vt_err, total_err
-    
+  
     def save_data(self):
         df_soc = pd.DataFrame(self.main_data_soc)
         df_soc.to_csv(f'ECM/soc_est_{self.battery_num}.csv')
@@ -167,8 +169,8 @@ class ECM():
 # please uncomment this if you want to run the optimiser
 # ecm = ECM(0.25098788, 0.3372615, 0.003931529, 0.819609, 0.003931529, 0.8196096, 0.64706235, 'B0005')  # higher MSE but clear rul degredation wo. discharge cycles
 # # # ecm = ECM(3.2156930588235295, 5.098044117647058, 0.4313821176470588, 9.490196588235294, 0.4313821176470588, 9.490196588235294, 8.35294282352941, 'B0005')  # Weird spiking behaviour no real rul degredation wo. discharge cycles
-ecm = ECM(988.3529, 88.628588, 96.0788235, 40.39811, 96.0788235, 40.39811, 0.40211, 'B0005')  # ga opt values w. discharge cycles
-# ecm = ECM(r=2.078439294117647, p1=8.901961882352941, p2=0.11765694117647059, p3=4.23529988235294, q1=0.11765694117647059, q2=4.23529988235294, q3=9.137255764705882, battery_num='B0005')
-# ecm = ECM(r=7.647061176470587, p1=8.745099294117647, p2=2.4313801176470586, p3=6.862748235294117, q1=2.4313801176470586, q2=6.862748235294117, q3=7.607845529411764, battery_num='B0006')
-soc_est, vt_est, vt_err, total_err = ecm.EKF(save_plot=True, save_data=True)
-ecm.save_data()
+# ecm = ECM(988.3529, 88.628588, 96.0788235, 40.39811, 96.0788235, 40.39811, 0.40211, 'B0005')  # ga opt values w. discharge cycles
+# # ecm = ECM(r=2.078439294117647, p1=8.901961882352941, p2=0.11765694117647059, p3=4.23529988235294, q1=0.11765694117647059, q2=4.23529988235294, q3=9.137255764705882, battery_num='B0005')
+# ecm = ECM(965.0588235294117, 94.90247058823529, 78.82564705882353, 90.19705882352942, 78.82564705882353, 90.19705882352942, 5.891764705882353, battery_num='B0018')
+# soc_est, vt_est, vt_err, total_err = ecm.EKF(save_plot=True, save_data=True)
+# # ecm.save_data()
