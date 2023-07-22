@@ -35,7 +35,7 @@ def train_evaluate(ga_individual_sol):
 
     # Run EKF
     try:
-        ecm = ECM(R, P1, P2, P3, Q1, Q2, Q3, 'B0005')
+        ecm = ECM(R, P1, P2, P3, Q1, Q2, Q3, 'B0007')
         soc_est, vt_est, vt_err, total_err = ecm.EKF(save_plot=False)
     except np.linalg.LinAlgError:
         total_err = 1000000
@@ -48,9 +48,9 @@ if __name__ == '__main__':
     # set seed for reproducibility
     np.random.seed(121)
     # set number of generations
-    ngen = 5
+    ngen = 3
     # set population size
-    popsize = 20
+    popsize = 15
     # set gene length
     gene_length = 8
     entire_length = 7*gene_length
@@ -74,7 +74,7 @@ if __name__ == '__main__':
     toolbox.register("evaluate", train_evaluate)  # this train evaluate might not be allowed to have gene)length as input
 
     population = toolbox.population(n=popsize)
-    r = algorithms.eaSimple(population, toolbox, cxpb=0.4, mutpb=0.3, ngen=ngen, verbose=True)
+    r = algorithms.eaSimple(population, toolbox, cxpb=0.4, mutpb=0.4, ngen=ngen, verbose=True)
 
     # print best solution found
     best_individuals = tools.selBest(population, k=2)
