@@ -3,7 +3,6 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
-import math
 
 
 def create_time_padding(battery, model_type, n):
@@ -17,8 +16,8 @@ def create_time_padding(battery, model_type, n):
     elif model_type == 'hybrid':
         for i in battery:
             data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
-    pd.concat(data)
-    TTD = data('TTD')
+    data = pd.concat(data)
+    TTD = data['TTD']
     index_jumps = TTD.where(TTD == 0, 1)
     new_cycle = TTD.where(TTD.diff() < 0, 1)
     new_cycle[0] = 1
@@ -34,7 +33,9 @@ def create_time_padding(battery, model_type, n):
     new_data = pd.concat([new_data, data.iloc[new_data_1]])
     # print(new_data)
     new_data.sort_index(inplace=True)
-    return new_data.reset_index()
+    new_data.reset_index().to_csv(f'data/padded_data_{model_type}_{battery}.csv')
+    return print(f'padded data saved')
+
 
 
 def load_data_normalise(battery, model_type):
@@ -49,9 +50,16 @@ def load_data_normalise(battery, model_type):
     elif model_type == 'hybrid':
         for i in battery:
             data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
+    elif model_type == 'data_padded':
+        for i in battery:
+            data.append(pd.read_csv(f"data/padded_data_data_['{i}'].csv"))
+    elif model_type == 'hybrid_padded':
+        for i in battery:
+            data.append(pd.read_csv(f"data/padded_data_hybrid_['{i}'].csv"))
     else:
-        print('wrong model type, either data or hybrid')
+        print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
         raise NameError
+    print('read data')
     data = pd.concat(data)
     time = data['Time']
     time_mean = time.mean(axis=0)
@@ -82,31 +90,36 @@ def data_split(normalised_data, test_size, cv_size, seq_length):
     y = normalised_data['TTD']
     X = normalised_data.drop(['TTD', 'Time'], axis=1)
     X_train, y_train, X_test, y_test, X_cv, y_cv = train_test_validation_split(X, y, test_size, cv_size)
-
     x_tr = []
     y_tr = []
-    for i in range(seq_length, len(X_train)):
-        x_tr.append(X_train.values[i-seq_length:i])
-        y_tr.append(y_train.values[i])
-
+    # this for loop is very inefficient, as it fills ram
+    # for i in range(seq_length, len(X_train)):
+    #     print('2')
+    #     x_tr.append(X_train.values[i-seq_length:i])
+    #     y_tr.append(y_train.values[i])
+    x_tr = X_train.values[:]
+    y_tr = y_train.values[seq_length:]
+    x_tr = np.array([x_tr[i-seq_length:i] for i in range(seq_length, len(x_tr))])
     x_tr = torch.tensor(np.array(x_tr))
     y_tr = torch.tensor(y_tr).unsqueeze(1).unsqueeze(2)
-
     x_v = []
     y_v = []
-    for i in range(seq_length, len(X_cv)):
-        x_v.append(X_cv.values[i-seq_length:i])
-        y_v.append(y_cv.values[i])
-
+    # for i in range(seq_length, len(X_cv)):
+    #     x_v.append(X_cv.values[i-seq_length:i])
+    #     y_v.append(y_cv.values[i])
+    x_v = X_cv.values[:]
+    y_v = y_cv.values[seq_length:]
+    x_v = np.array([x_v[i-seq_length:i] for i in range(seq_length, len(x_v))])
     x_v = torch.tensor(np.array(x_v))
     y_v = torch.tensor(y_v).unsqueeze(1).unsqueeze(2)
-
     x_t = []
     y_t = []
-    for i in range(seq_length, len(X_test)):
-        x_t.append(X_test.values[i-seq_length:i])
-        y_t.append(y_test.values[i])
-
+    # for i in range(seq_length, len(X_test)):
+    #     x_t.append(X_test.values[i-seq_length:i])
+    #     y_t.append(y_test.values[i])
+    x_t = X_test.values[:]
+    y_t = y_test.values[seq_length:]
+    x_t = np.array([x_t[i-seq_length:i] for i in range(seq_length, len(x_t))])
     x_t = torch.tensor(np.array(x_t))
     y_t = torch.tensor(y_t).unsqueeze(1).unsqueeze(2)
 
@@ -188,8 +201,6 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
     """
     epoch = []
     early_stopper = EarlyStopper(patience=10, min_delta=0.0001)
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model.to(device)
     with torch.no_grad():
         train_loss_history = []
         val_loss_history = []
@@ -238,6 +249,8 @@ def plot_loss(train_loss_history, val_loss_history):
 
 def plot_predictions(model, X_test, y_test, model_type):
     predictions = model(X_test)
+    predictions = predictions.cpu()
+    y_test = y_test.cpu()
     plt.plot(y_test.squeeze(), label='Actual')
     plt.plot(predictions.detach().squeeze(), label='Prediction')
     plt.xlabel('Time')
@@ -245,6 +258,7 @@ def plot_predictions(model, X_test, y_test, model_type):
     plt.legend()
     plt.title(f'Predictions vs Actual for {model_type} model')
     plt.show()
+
 
 class SeqDataset:
     def __init__(self, x_data, y_data, seq_len, batch):

@@ -7,9 +7,22 @@
 # print(f'Available GPU devices: {torch.cuda.device_count()}')
 # print(f'Device Name: {torch.cuda.get_device_name()}')
 import pandas as pd
-import numpy as np
+# import numpy as np
+battery = ['B0005']
+# data = pd.read_csv(f'data/padded_data_hybrid_{battery}.csv')
+# data.drop('index', axis=1, inplace=True)
+# data.drop('Unnamed: 0', axis=1, inplace=True)
+# data.to_csv(f'data/padded_data_hybrid_{battery}.csv')
 
+data = pd.read_csv("data/B0005_TTD - with SOC.csv")
+data_padded = pd.read_csv(f'data/padded_data_hybrid_{battery}.csv')
+print(len(data_padded['Voltage']))
+print(len(data_padded['TTD']))
+# from helpfunction import create_time_padding
 
+# ['B0006', 'B0007', 'B0018'],
+# create_time_padding(['B0005'], 'hybrid', 10)
+"""
 def create_time_padding(battery, model_type, n):
     '''
     Will time pad sawtooth functions with n data points before and after.
@@ -89,3 +102,4 @@ data.sort_index(inplace=True)
 print(data)
 '''
 
+"""
