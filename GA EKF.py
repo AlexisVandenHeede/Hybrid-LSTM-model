@@ -35,7 +35,7 @@ def train_evaluate(ga_individual_sol):
 
     # Run EKF
     try:
-        ecm = ECM(R, P1, P2, P3, Q1, Q2, Q3, 'B0005')
+        ecm = ECM(R, P1, P2, P3, Q1, Q2, Q3, 'B0006')
         soc_est, vt_est, vt_err, total_err = ecm.EKF(with_discharge_cycles=True, save_plot=False)
     except np.linalg.LinAlgError:
         total_err = 1000000
@@ -48,13 +48,14 @@ if __name__ == '__main__':
     # set seed for reproducibility
     np.random.seed(121)
     # set number of generations
-    ngen = 70
+    ngen = 20
     # set population size
     popsize = 10
     # set gene length
     gene_length = 8
     entire_length = 7*gene_length
-
+    ga_individual_sol = [1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0]
+    train_evaluate(ga_individual_sol)
     # basically creates classes for the fitness and individual
     creator.create('FitnessMax', base.Fitness, weights=[-1.0])
     creator.create('Individual', list, fitness=creator.FitnessMax)

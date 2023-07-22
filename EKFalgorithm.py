@@ -196,4 +196,6 @@ class ECM():
 # please uncomment this if you want to run the optimiser
 # ecm = ECM(0.25098788, 0.3372615, 0.003931529, 0.819609, 0.003931529, 0.8196096, 0.64706235, 'B0005')  # higher MSE but clear rul degredation
 # ecm = ECM(3.2156930588235295, 5.098044117647058, 0.4313821176470588, 9.490196588235294, 0.4313821176470588, 9.490196588235294, 8.35294282352941, 'B0005')  # Weird spiking behaviour no real rul degredation 
-# soc_est, vt_est, vt_err, total_err = ecm.EKF(with_discharge_cycles=True, save_plot=True)
+# ecm = ECM(r=2.078439294117647, p1=8.901961882352941, p2=0.11765694117647059, p3=4.23529988235294, q1=0.11765694117647059, q2=4.23529988235294, q3=9.137255764705882, battery_num='B0005')
+ecm = ECM(r=7.647061176470587, p1=8.745099294117647, p2=2.4313801176470586, p3=6.862748235294117, q1=2.4313801176470586, q2=6.862748235294117, q3=7.607845529411764, battery_num='B0006')
+soc_est, vt_est, vt_err, total_err = ecm.EKF(with_discharge_cycles=True, save_plot=True)
