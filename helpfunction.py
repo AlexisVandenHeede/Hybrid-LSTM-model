@@ -161,6 +161,7 @@ class EarlyStopper:
         self.min_delta = min_delta
         self.counter = 0
         self.min_validation_loss = np.inf
+        self.counter_1 = 0
 
     def early_stop(self, validation_loss):
         """Implement the early stopping criterion.
@@ -171,9 +172,10 @@ class EarlyStopper:
             self.min_validation_loss = validation_loss
             return False
         else:
-            if (validation_loss - self.min_validation_loss) > self.min_delta:
+            self.counter_1 += 0.5
+            if (validation_loss - self.min_validation_loss) >= self.min_delta:
                 self.counter += 1
-                if self.counter >= self.patience:
+                if self.counter + self.counter_1 >= self.patience:
                     return True
                 else:
                     return False
@@ -199,7 +201,7 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
     train model dataloaders, early stopper Class
     """
     epoch = []
-    early_stopper = EarlyStopper(patience=10, min_delta=0.0001)
+    early_stopper = EarlyStopper(patience=2, min_delta=0.00001)
     with torch.no_grad():
         train_loss_history = []
         val_loss_history = []
