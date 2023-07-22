@@ -81,6 +81,7 @@ class ECM():
                 current = self.bat['Current_measured'][idx[i]+1:idx[i+1]]
                 Vt_act = self.bat['Voltage_measured'][idx[i]+1:idx[i+1]]
                 indx = []
+                Vt_act_plot = []
 
                 for k in range(len(current)):
                     T_val = temperature[k+idx[i]+1]
@@ -118,6 +119,7 @@ class ECM():
                     Vt_err.append(Error_x.item(0))
                     SOC_est.append(soc)
                     indx.append(k+idx[i]+2)
+                    Vt_act_plot.append(Vt_act[k+idx[i]+1])
                     total_err += (Error_x.item(0)) ** 2
 
                     # Prediction
@@ -130,13 +132,23 @@ class ECM():
                     P_x = (np.eye(3) - Kalman_gain*C_x)*P_x
 
                 if save_plot:
+                    plt.figure(1)
+                    plt.plot(indx, Vt_act_plot, 'r')
+                    plt.plot(indx, Vt_est, 'b')
+                    plt.xlabel('Instance')
+                    plt.ylabel('Terminal voltage')
                     plt.figure(2)
                     plt.plot(indx, Vt_err, 'g')
+                    plt.xlabel('Instance')
+                    plt.ylabel('Absolute error')
                     plt.figure(3)
                     plt.plot(indx, SOC_est, 'b')
+                    plt.xlabel('Instance')
+                    plt.ylabel('SOC')
 
             plt.show()
-            print(f'MSE is {total_err/(len(idx)-1)}')
+            total_err = total_err/(len(idx)-1)
+            print(f'MSE is {total_err}')
             return SOC_est, Vt_est, Vt_err, total_err
         else:
             for k in range(len(current)):
@@ -194,6 +206,7 @@ class ECM():
 
 # testing if the algorithm works
 # please uncomment this if you want to run the optimiser
-# ecm = ECM(0.25098788, 0.3372615, 0.003931529, 0.819609, 0.003931529, 0.8196096, 0.64706235, 'B0005')  # higher MSE but clear rul degredation
-# ecm = ECM(3.2156930588235295, 5.098044117647058, 0.4313821176470588, 9.490196588235294, 0.4313821176470588, 9.490196588235294, 8.35294282352941, 'B0005')  # Weird spiking behaviour no real rul degredation 
+# ecm = ECM(0.25098788, 0.3372615, 0.003931529, 0.819609, 0.003931529, 0.8196096, 0.64706235, 'B0005')  # higher MSE but clear rul degredation wo. discharge cycles
+# # ecm = ECM(3.2156930588235295, 5.098044117647058, 0.4313821176470588, 9.490196588235294, 0.4313821176470588, 9.490196588235294, 8.35294282352941, 'B0005')  # Weird spiking behaviour no real rul degredation wo. discharge cycles
+# ecm = ECM(6.8235325882352935, 7.843139411764706, 1.1372637647058823, 6.980395176470588, 1.1372637647058823, 6.980395176470588, 9.294118352941176, 'B0005') # ga opt values w. discharge cycles
 # soc_est, vt_est, vt_err, total_err = ecm.EKF(with_discharge_cycles=True, save_plot=True)

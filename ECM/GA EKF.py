@@ -23,19 +23,19 @@ def train_evaluate(ga_individual_sol):
     Q3 = BitArray(Q3).uint
 
     # resize hyperparameterss to be within range
-    R = np.interp(R, [0, 2**gene_length-1], [1e-5, 10])
-    P1 = np.interp(P1, [0, 2**gene_length-1], [1e-5, 10])
-    P2 = np.interp(P2, [0, 2**gene_length-1], [1e-5, 10])
-    P3 = np.interp(P3, [0, 2**gene_length-1], [1e-5, 10])
-    Q1 = np.interp(Q1, [0, 2**gene_length-1], [1e-5, 10])
-    Q2 = np.interp(Q2, [0, 2**gene_length-1], [1e-5, 10])
-    Q3 = np.interp(Q3, [0, 2**gene_length-1], [1e-5, 10])
+    R = np.interp(R, [0, 2**gene_length-1], [1e1, 1e3])
+    P1 = np.interp(P1, [0, 2**gene_length-1], [1e-2, 1e2])
+    P2 = np.interp(P2, [0, 2**gene_length-1], [1e-2, 1e2])
+    P3 = np.interp(P3, [0, 2**gene_length-1], [1e-2, 1e2])
+    Q1 = np.interp(Q1, [0, 2**gene_length-1], [1e-2, 1e2])
+    Q2 = np.interp(Q2, [0, 2**gene_length-1], [1e-2, 1e2])
+    Q3 = np.interp(Q3, [0, 2**gene_length-1], [1e-2, 1e2])
 
     print(f'R = {R}, P1 = {P1}, P2 = {P2}, P3 = {P3}, Q1 = {Q1}, Q2 = {Q2}, Q3 = {Q3}')
 
     # Run EKF
     try:
-        ecm = ECM(R, P1, P2, P3, Q1, Q2, Q3, 'B0005')
+        ecm = ECM(R, P1, P2, P3, Q1, Q2, Q3, 'B0006')
         soc_est, vt_est, vt_err, total_err = ecm.EKF(with_discharge_cycles=True, save_plot=False)
     except np.linalg.LinAlgError:
         total_err = 1000000
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     # set seed for reproducibility
     np.random.seed(121)
     # set number of generations
-    ngen = 70
+    ngen = 5
     # set population size
     popsize = 10
     # set gene length
