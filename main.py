@@ -28,6 +28,7 @@ hidden_size_lstm = 10
 num_layers_lstm = 3
 hidden_neurons_dense = [4, 1]
 inputlstm = X_train.shape[2]
+hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
 # model initialisation
 model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, inputlstm)
 lf = torch.nn.MSELoss()

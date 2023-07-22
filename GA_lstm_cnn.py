@@ -1,0 +1,100 @@
+from deap import base, creator, tools, algorithms
+from scipy.stats import poisson
+from helpfunction import k_fold
+import numpy as np
+from bitstring import BitArray
+
+
+def basis_func(scaling_factor, hidden_layers):
+    basis = np.linspace(1, scaling_factor, num=hidden_layers,  dtype=int)
+    if hidden_layers == 1:
+        basis[0] = 1
+    # basis = (basis).astype(int)
+    basis_fun = []
+    basis_fun = []
+    for i in range(hidden_layers):
+        if basis[i] == 0:
+            basis[i] = 1
+        basis_fun.append(basis[i])
+    return basis_fun
+
+
+def train_evaluate(ga_individual_solution):
+    gene_length = 8
+    n_epoch = 50
+
+    seq_length = BitArray(ga_individual_solution[0:gene_length])
+    num_layers_conv = BitArray(ga_individual_solution[gene_length:2*gene_length])
+    output_channels = BitArray(ga_individual_solution[2*gene_length:3*gene_length])
+    kernel_sizes = BitArray(ga_individual_solution[3*gene_length:4*gene_length])
+    stride_sizes = BitArray(ga_individual_solution[4*gene_length:5*gene_length])
+    padding_sizes = BitArray(ga_individual_solution[5*gene_length:6*gene_length])
+    hidden_size_lstm = BitArray(ga_individual_solution[6*gene_length:7*gene_length])
+    num_layers_lstm = BitArray(ga_individual_solution[7*gene_length:8*gene_length])
+    hidden_neurons_dense = BitArray(ga_individual_solution[8*gene_length:9*gene_length])
+    lr = BitArray(ga_individual_solution[9*gene_length:10*gene_length])
+    batch_size = BitArray(ga_individual_solution[10*gene_length:11*gene_length])
+
+    seq_length = seq_length.uint
+    num_layers_conv = num_layers_conv.uint
+    output_channels = output_channels.uint
+    kernel_sizes = kernel_sizes.uint
+    stride_sizes = stride_sizes.uint
+    padding_sizes = padding_sizes.uint
+    hidden_size_lstm = hidden_size_lstm.uint
+    num_layers_lstm = num_layers_lstm.uint
+    hidden_neurons_dense = hidden_neurons_dense.uint
+    lr = lr.uint
+    batch_size = batch_size.uint
+
+    # resize hyperparameterss to be within range
+    seq_length = int(np.interp(seq_length, [0, 255], [1, 50]))
+    num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [1, 10]))
+    output_channels = int(np.interp(output_channels, [0, 255], [1, 10]))
+    kernel_sizes = int(np.interp(kernel_sizes, [0, 255], [1, 10]))
+    stride_sizes = int(np.interp(stride_sizes, [0, 255], [1, 10]))
+    padding_sizes = int(np.interp(padding_sizes, [0, 255], [1, 10]))
+    hidden_size_lstm = int(np.interp(hidden_size_lstm, [0, 255], [1, 10]))
+    num_layers_lstm = int(np.interp(num_layers_lstm, [0, 255], [1, 10]))
+    hidden_neurons_dense = int(np.interp(hidden_neurons_dense, [0, 255], [1, 10]))
+    lr = round(np.interp(lr, [0, 255], [0.0001, 0.1]), 5)
+    batch_size = int(np.interp(batch_size, [0, 255], [150, 3000]))
+
+    output_channels = basis_func(output_channels, num_layers_conv)
+    kernel_sizes = basis_func(kernel_sizes, num_layers_conv)
+    stride_sizes = basis_func(stride_sizes, num_layers_conv)
+    padding_sizes = basis_func(padding_sizes, num_layers_conv)
+    hidden_neurons_dense = basis_func(hidden_neurons_dense, num_layers_conv)
+    hidden_neurons_dense_arr = np.flip(np.array(hidden_neurons_dense))
+    hidden_neurons_dense = list(hidden_neurons_dense_arr)
+    hidden_neurons_dense.append(1)
+    hidden_neurons_dense[-1] = 1
+
+    hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
+    loss = k_fold(model_type='data_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], verbose=False)
+    return [loss]
+
+
+population_size = 10
+num_generations = 10
+entire_bit_array_length = 11*8
+
+creator.create('FitnessMax', base.Fitness, weights=[-1.0])
+creator.create('Individual', list, fitness=creator.FitnessMax)
+
+toolbox = base.Toolbox()
+toolbox.register('binary', poisson.rvs, 0.5)
+toolbox.register('individual', tools.initRepeat, creator.Individual, toolbox.binary, n=entire_bit_array_length)
+toolbox.register('population', tools.initRepeat, list, toolbox.individual)
+
+toolbox.register('mate', tools.cxOrdered)
+toolbox.register('mutate', tools.mutShuffleIndexes, indpb=0.6)
+toolbox.register('select', tools.selTournament, tournsize=int(population_size/2))
+toolbox.register('evaluate', train_evaluate)
+
+population = toolbox.population(n=population_size)
+r = algorithms.eaSimple(population, toolbox, cxpb=0.4, mutpb=0.1, ngen=num_generations, verbose=True)
+
+best_individual = tools.selBest(population, k=1)[0]
+print('Best ever individual = ', best_individual, '\nFitness = ', best_individual.fitness.values[0])
+print(f'list of individuals = {best_individual}')

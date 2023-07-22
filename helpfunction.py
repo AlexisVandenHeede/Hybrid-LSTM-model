@@ -3,6 +3,7 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
+from ParametricLSTMCNN import ParametricLSTMCNN
 
 
 def create_time_padding(battery, model_type, n):
@@ -23,7 +24,7 @@ def create_time_padding(battery, model_type, n):
     new_cycle[0] = 1
     new_cycle[new_cycle != 1] = 0
     new_cycle *= n
-    index_jumps = index_jumps.replace({0:1, 1:0}) * n
+    index_jumps = index_jumps.replace({0: 1, 1: 0}) * n
     # print(f'index_jumps = {index_jumps}')
     # print(data)
     new_data = data.index.repeat(index_jumps)
@@ -34,8 +35,7 @@ def create_time_padding(battery, model_type, n):
     # print(new_data)
     new_data.sort_index(inplace=True)
     new_data.reset_index().to_csv(f'data/padded_data_{model_type}_{battery}.csv')
-    return print(f'padded data saved')
-
+    return print('padded data saved')
 
 
 def load_data_normalise(battery, model_type):
@@ -59,7 +59,6 @@ def load_data_normalise(battery, model_type):
     else:
         print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
         raise NameError
-    print('read data')
     data = pd.concat(data)
     time = data['Time']
     time_mean = time.mean(axis=0)
@@ -229,7 +228,7 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
         if verbose:
-                print(f"Epoch {i+1}: train loss = {train_loss:.10f}, val loss = {val_loss:.10f}")
+            print(f"Epoch {i+1}: train loss = {train_loss:.10f}, val loss = {val_loss:.10f}")
         # earlystopper
         if early_stopper.early_stop(val_loss):
             print("Early stopping")
@@ -296,3 +295,58 @@ def eval_model(model, X_test, y_test, criterion):
         y_pred = model(X_test)
         rmse = np.sqrt(criterion(y_test, y_pred).item())
     return rmse
+
+
+def k_fold(model_type, hyperparameters, battery, verbose):
+    k_fold_rmse = []
+    for i in range(4):
+        battery_temp = battery.copy()
+        test_battery = [battery[i]]
+        print(f'test battery is {test_battery}')
+        battery_temp.remove(test_battery[0])
+        if i == 3:
+            validation_battery = [battery[0]]
+        else:
+            validation_battery = [battery[i+1]]
+        battery_temp.remove(validation_battery[0])
+        print(f'validation battery is {validation_battery}')
+        train_battery = battery_temp
+        print(f'train battery is {train_battery}')
+        normalised_data_train, time_mean_train, time_std_train = load_data_normalise(train_battery, model_type)
+        normalised_data_test, time_mean_test, time_std_test = load_data_normalise(test_battery, model_type)
+        normalised_data_validation, time_mean_validation, time_std_validation = load_data_normalise(validation_battery, model_type)
+        seq_length = hyperparameters[0]
+        X_train, y_train = k_fold_data(normalised_data_train, seq_length)
+        X_test, y_test = k_fold_data(normalised_data_test, seq_length)
+        X_validation, y_validation = k_fold_data(normalised_data_validation, seq_length)
+        model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], hyperparameters[0], X_train.shape[2])
+        lf = torch.nn.MSELoss()
+        opimiser = torch.optim.Adam(model.parameters(), lr=hyperparameters[9])
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model.to(device)
+        train_dataset = SeqDataset(x_data=X_train, y_data=y_train, seq_len=seq_length, batch=hyperparameters[10])
+        validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, seq_len=seq_length, batch=hyperparameters[10])
+        model, train_loss_history, val_loss_history = train_batch(model, train_dataset, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
+        rmse_test = eval_model(model, X_test, y_test, lf)
+        if verbose:
+            print(f'rmse_test = {rmse_test}')
+            plot_loss(train_loss_history, val_loss_history)
+            plot_predictions(model, X_test, y_test, model_type)
+        k_fold_rmse.append(rmse_test)
+    rmse_test = np.mean(k_fold_rmse)
+    print(f'average rmse_test = {rmse_test}')
+    return rmse_test
+
+
+def k_fold_data(normalised_data, seq_length):
+    y = normalised_data['TTD']
+    X = normalised_data.drop(['TTD', 'Time'], axis=1)
+    x_tr = X.values[:]
+    y_tr = y.values[seq_length:]
+    x_tr = np.array([x_tr[i-seq_length:i] for i in range(seq_length, len(x_tr))])
+    x_tr = torch.tensor(np.array(x_tr))
+    y_tr = torch.tensor(y_tr).unsqueeze(1).unsqueeze(2)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    x_tr = x_tr.to(device).float()
+    y_tr = y_tr.to(device).float()
+    return x_tr, y_tr

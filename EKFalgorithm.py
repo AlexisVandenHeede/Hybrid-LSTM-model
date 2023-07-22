@@ -15,7 +15,7 @@ class ECM():
         self.q3 = q3
         self.battery_num = battery_num
 
-        # load interpolant data 
+        # load interpolant data
         self.dat = []
         self.dat.append(pd.read_excel('ECM/SOC_OCV_data.xlsx'))
         self.dat = pd.concat(self.dat)
@@ -47,7 +47,7 @@ class ECM():
                 indx.append(i+2+10)
         indx = np.array(indx)
         return indx
-      
+
     def EKF(self, with_discharge_cycles=False, save_plot=False):
         # Initial conditions
         soc_init = 1
@@ -105,7 +105,7 @@ class ECM():
                     b1 = (R1 * (1-a1)).item(0)
                     b2 = (R2 * (1-a2)).item(0)
 
-                    terminal_voltage = ocv_pred - R0 * U - V1 - V2 
+                    terminal_voltage = ocv_pred - R0 * U - V1 - V2
 
                     dOCV = dsococv(soc)
 
@@ -184,7 +184,7 @@ class ECM():
                 b1 = (R1 * (1-a1)).item(0)
                 b2 = (R2 * (1-a2)).item(0)
 
-                terminal_voltage = ocv_pred - R0 * U - V1 - V2 
+                terminal_voltage = ocv_pred - R0 * U - V1 - V2
 
                 dOCV = dsococv(soc)
 
@@ -230,4 +230,6 @@ class ECM():
 # ecm = ECM(0.25098788, 0.3372615, 0.003931529, 0.819609, 0.003931529, 0.8196096, 0.64706235, 'B0005')  # higher MSE but clear rul degredation wo. discharge cycles
 # # ecm = ECM(3.2156930588235295, 5.098044117647058, 0.4313821176470588, 9.490196588235294, 0.4313821176470588, 9.490196588235294, 8.35294282352941, 'B0005')  # Weird spiking behaviour no real rul degredation wo. discharge cycles
 ecm = ECM(6.8235325882352935, 7.843139411764706, 1.1372637647058823, 6.980395176470588, 1.1372637647058823, 6.980395176470588, 9.294118352941176, 'B0005') # ga opt values w. discharge cycles
+ecm = ECM(r=2.078439294117647, p1=8.901961882352941, p2=0.11765694117647059, p3=4.23529988235294, q1=0.11765694117647059, q2=4.23529988235294, q3=9.137255764705882, battery_num='B0005')
+ecm = ECM(r=7.647061176470587, p1=8.745099294117647, p2=2.4313801176470586, p3=6.862748235294117, q1=2.4313801176470586, q2=6.862748235294117, q3=7.607845529411764, battery_num='B0006')
 soc_est, vt_est, vt_err, total_err = ecm.EKF(with_discharge_cycles=True, save_plot=True)
