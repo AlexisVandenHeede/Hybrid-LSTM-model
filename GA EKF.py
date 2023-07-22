@@ -35,7 +35,7 @@ def train_evaluate(ga_individual_sol):
 
     # Run EKF
     try:
-        ecm = ECM(R, P1, P2, P3, Q1, Q2, Q3, 'B0006')
+        ecm = ECM(R, P1, P2, P3, Q1, Q2, Q3, 'B0005')
         soc_est, vt_est, vt_err, total_err = ecm.EKF(with_discharge_cycles=True, save_plot=False)
     except np.linalg.LinAlgError:
         total_err = 1000000
