@@ -3,6 +3,7 @@ from scipy.stats import poisson
 from helpfunction import k_fold
 import numpy as np
 from bitstring import BitArray
+from torch import cuda
 
 
 def basis_func(scaling_factor, hidden_layers):
