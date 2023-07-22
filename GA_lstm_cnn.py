@@ -20,6 +20,7 @@ def basis_func(scaling_factor, hidden_layers):
 
 
 def train_evaluate(ga_individual_solution):
+    cuda.empty_cache()
     gene_length = 8
     n_epoch = 50
 
@@ -71,12 +72,13 @@ def train_evaluate(ga_individual_solution):
     hidden_neurons_dense[-1] = 1
 
     hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
-    loss = k_fold(model_type='data_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], verbose=False)
+    print(f'hyperparameters: {hyperparameters}')
+    loss = k_fold(model_type='data_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], verbose=False, strict=True)
     return [loss]
 
 
 population_size = 10
-num_generations = 10
+num_generations = 30
 entire_bit_array_length = 11*8
 
 creator.create('FitnessMax', base.Fitness, weights=[-1.0])

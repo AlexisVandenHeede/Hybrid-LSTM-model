@@ -167,18 +167,20 @@ class EarlyStopper:
         """Implement the early stopping criterion.
         The function has to return 'True' if the current validation loss (in the arguments) has increased
         with respect to the minimum value of more than 'min_delta' and for more than 'patience' steps.
-        Otherwise the function returns 'False'."""
+        Otherwise the function returns 'False'.
+        counter_1 is so that if no learning takes place return True
+        """
         if validation_loss < self.min_validation_loss:
             self.min_validation_loss = validation_loss
             return False
         else:
-            self.counter_1 += 0.5
             if (validation_loss - self.min_validation_loss) >= self.min_delta:
                 self.counter += 1
-                if self.counter + self.counter_1 >= self.patience:
-                    return True
-                else:
-                    return False
+            else:
+                self.counter_1 += 1
+            if self.counter + self.counter_1 >= self.patience:
+                print(f'counters: {self.counter}, {self.counter_1}')
+                return True
             else:
                 return False
 
@@ -201,7 +203,7 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
     train model dataloaders, early stopper Class
     """
     epoch = []
-    early_stopper = EarlyStopper(patience=2, min_delta=0.00001)
+    early_stopper = EarlyStopper(patience=5, min_delta=0.00001)
     with torch.no_grad():
         train_loss_history = []
         val_loss_history = []
@@ -299,21 +301,21 @@ def eval_model(model, X_test, y_test, criterion):
     return rmse
 
 
-def k_fold(model_type, hyperparameters, battery, verbose):
+def k_fold(model_type, hyperparameters, battery, verbose, strict):
     k_fold_rmse = []
     for i in range(4):
         battery_temp = battery.copy()
         test_battery = [battery[i]]
-        print(f'test battery is {test_battery}')
+        # print(f'test battery is {test_battery}')
         battery_temp.remove(test_battery[0])
         if i == 3:
             validation_battery = [battery[0]]
         else:
             validation_battery = [battery[i+1]]
         battery_temp.remove(validation_battery[0])
-        print(f'validation battery is {validation_battery}')
+        # print(f'validation battery is {validation_battery}')
         train_battery = battery_temp
-        print(f'train battery is {train_battery}')
+        # print(f'train battery is {train_battery}')
         normalised_data_train, time_mean_train, time_std_train = load_data_normalise(train_battery, model_type)
         normalised_data_test, time_mean_test, time_std_test = load_data_normalise(test_battery, model_type)
         normalised_data_validation, time_mean_validation, time_std_validation = load_data_normalise(validation_battery, model_type)
@@ -330,8 +332,14 @@ def k_fold(model_type, hyperparameters, battery, verbose):
         validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, seq_len=seq_length, batch=hyperparameters[10])
         model, train_loss_history, val_loss_history = train_batch(model, train_dataset, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
         rmse_test = eval_model(model, X_test, y_test, lf)
+        if strict:
+            if rmse_test >= 1.25:
+                print(f'rmse_test = {rmse_test}')
+                print(f'rmse too high')
+                k_fold_rmse = 100
+                break
+        print(f'rmse_test = {rmse_test}')
         if verbose:
-            print(f'rmse_test = {rmse_test}')
             plot_loss(train_loss_history, val_loss_history)
             plot_predictions(model, X_test, y_test, model_type)
         k_fold_rmse.append(rmse_test)
