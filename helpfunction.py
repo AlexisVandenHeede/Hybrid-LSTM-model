@@ -356,3 +356,30 @@ def k_fold_data(normalised_data, seq_length):
     x_tr = x_tr.to(device).float()
     y_tr = y_tr.to(device).float()
     return x_tr, y_tr
+
+
+def add_ecm_data(battery_num):
+    df_ecm = pd.read_csv(f'ECM/ECM_data_{battery_num}.csv')
+    df_padded = pd.read_csv(f'data/padded_data_data_[{battery_num}].csv')
+    df_padded['Instance'] = [i for i in range(0, len(df_padded))]
+    soc = np.ones(len(df_padded))
+    clean = np.ones(len(df_padded))
+    for i in df_ecm['Instance']:
+        for j in df_padded['Instance']:
+            if i == j+1:
+                soc[j] = df_ecm.loc[df_ecm['Instance'] == i, 'SOC'].iloc[0]
+                clean[j] = df_ecm.loc[df_ecm['Instance'] == i, 'Vt_est'].iloc[0]
+                break
+    for i in range(len(soc)):
+        if soc[i] == 1 and df_padded['TTD'][i] < 100:
+            soc[i] = soc[i-1]
+            clean[i] = df_padded['Voltage_measured'][i]
+        elif soc[i] == 1 and df_padded['TTD'][i] > 1000:
+            soc[i] = 0.85
+            clean[i] = df_padded['Voltage_measured'][i]
+    df_padded['SOC'] = soc
+    df_padded['Vt_est'] = clean
+    df_padded.to_csv(f'data/padded_data_hybrid_w_ecm[{battery_num}].csv')
+    return print('ECM data added')
+
+
