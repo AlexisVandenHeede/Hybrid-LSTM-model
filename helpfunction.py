@@ -294,7 +294,8 @@ def eval_model(model, X_test, y_test, criterion):
     with torch.no_grad():
         y_pred = model(X_test)
         rmse = np.sqrt(criterion(y_test, y_pred).item())
-    return rmse
+        raw_test = (np.sum((y_test.cpu().detach().numpy() - y_pred.cpu().detach().numpy())**2))/len(y_test)
+    return rmse, raw_test
 
 
 def k_fold(model_type, hyperparameters, battery, verbose, strict):
@@ -360,6 +361,7 @@ def k_fold_data(normalised_data, seq_length):
 
 def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
     k_fold_rmse = []
+    k_fold_raw_test = []
     for i in range(4):
         battery_temp = battery.copy()
         test_battery = [battery[i]]
@@ -393,12 +395,13 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
         validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, seq_len=seq_length, batch=hyperparameters[10])
         model, train_loss_history, val_loss_history = train_batch(model, train_dataset_1, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
         model, train_loss_history, val_loss_history = train_batch(model, train_dataset_2, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
-        rmse_test = eval_model(model, X_test, y_test, lf)
+        rmse_test, raw_test = eval_model(model, X_test, y_test, lf)
         print(f'rmse_test = {rmse_test}')
         if plot:
             plot_loss(train_loss_history, val_loss_history)
             plot_predictions(model, X_test, y_test, time_mean_test, time_std_test, model_type)
         k_fold_rmse.append(rmse_test)
+        k_fold_raw_test.append(raw_test)
         if strict:
             if sum(k_fold_rmse) > (i+1):
                 print(f'sum = {sum(k_fold_rmse)}')
@@ -406,9 +409,9 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
                 k_fold_rmse = 100
                 break
     rmse_test = np.mean(k_fold_rmse)
-    print(f'average rmse_test = {rmse_test}')
+    raw_test = np.mean(k_fold_raw_test)
+    print(f'average rmse_test = {rmse_test} and raw_err = {raw_test}')
     return rmse_test
-
 
 
 def add_ecm_data(battery_num):
@@ -434,5 +437,3 @@ def add_ecm_data(battery_num):
     df_padded['Vt_est'] = clean
     df_padded.to_csv(f'data/padded_data_hybrid_w_ecm[{battery_num}].csv')
     return print('ECM data added')
-
-
