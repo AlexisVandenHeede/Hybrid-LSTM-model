@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 from ParametricLSTMCNN import ParametricLSTMCNN
+from bitstring import BitArray
 
 
 def create_time_padding(battery, model_type, n):
@@ -55,7 +56,7 @@ def load_data_normalise(battery, model_type):
             data.append(pd.read_csv(f"data/padded_data_data_[{i}].csv"))
     elif model_type == 'hybrid_padded':
         for i in battery:
-            data.append(pd.read_csv(f"data/padded_data_hybrid_[{i}].csv"))
+            data.append(pd.read_csv(f"data/padded_data_hybrid_w_ecm[{i}].csv"))
     else:
         print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
         raise NameError
@@ -199,7 +200,7 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
     train model dataloaders, early stopper Class
     """
     epoch = []
-    early_stopper = EarlyStopper(patience=5, min_delta=0.000001)
+    early_stopper = EarlyStopper(patience=5, min_delta=0.00001)
     with torch.no_grad():
         train_loss_history = []
         val_loss_history = []
@@ -383,3 +384,57 @@ def add_ecm_data(battery_num):
     return print('ECM data added')
 
 
+def bit_to_hyperparameters(bit):
+    gene_length = 8
+    n_epoch = 100
+
+    seq_length = BitArray(bit[0:gene_length])
+    num_layers_conv = BitArray(bit[gene_length:2*gene_length])
+    output_channels = BitArray(bit[2*gene_length:3*gene_length])
+    kernel_sizes = BitArray(bit[3*gene_length:4*gene_length])
+    stride_sizes = BitArray(bit[4*gene_length:5*gene_length])
+    padding_sizes = BitArray(bit[5*gene_length:6*gene_length])
+    hidden_size_lstm = BitArray(bit[6*gene_length:7*gene_length])
+    num_layers_lstm = BitArray(bit[7*gene_length:8*gene_length])
+    hidden_neurons_dense = BitArray(bit[8*gene_length:9*gene_length])
+    lr = BitArray(bit[9*gene_length:10*gene_length])
+    batch_size = BitArray(bit[10*gene_length:11*gene_length])
+
+    seq_length = seq_length.uint
+    num_layers_conv = num_layers_conv.uint
+    output_channels = output_channels.uint
+    kernel_sizes = kernel_sizes.uint
+    stride_sizes = stride_sizes.uint
+    padding_sizes = padding_sizes.uint
+    hidden_size_lstm = hidden_size_lstm.uint
+    num_layers_lstm = num_layers_lstm.uint
+    hidden_neurons_dense = hidden_neurons_dense.uint
+    lr = lr.uint
+    batch_size = batch_size.uint
+
+    # resize hyperparameterss to be within range
+    seq_length = int(np.interp(seq_length, [0, 255], [1, 50]))
+    num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [1, 10]))
+    output_channels = int(np.interp(output_channels, [0, 255], [1, 10]))
+    kernel_sizes = int(np.interp(kernel_sizes, [0, 255], [1, 10]))
+    stride_sizes = int(np.interp(stride_sizes, [0, 255], [1, 10]))
+    padding_sizes = int(np.interp(padding_sizes, [0, 255], [1, 10]))
+    hidden_size_lstm = int(np.interp(hidden_size_lstm, [0, 255], [1, 10]))
+    num_layers_lstm = int(np.interp(num_layers_lstm, [0, 255], [1, 10]))
+    hidden_neurons_dense = int(np.interp(hidden_neurons_dense, [0, 255], [1, 10]))
+    lr = round(np.interp(lr, [0, 255], [0.0001, 0.1]), 5)
+    batch_size = int(np.interp(batch_size, [0, 255], [150, 3000]))
+
+    output_channels = basis_func(output_channels, num_layers_conv)
+    kernel_sizes = basis_func(kernel_sizes, num_layers_conv)
+    stride_sizes = basis_func(stride_sizes, num_layers_conv)
+    padding_sizes = basis_func(padding_sizes, num_layers_conv)
+    hidden_neurons_dense = basis_func(hidden_neurons_dense, num_layers_conv)
+    hidden_neurons_dense_arr = np.flip(np.array(hidden_neurons_dense))
+    hidden_neurons_dense = list(hidden_neurons_dense_arr)
+    hidden_neurons_dense.append(1)
+    hidden_neurons_dense[-1] = 1
+
+    hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
+    print(f'hyperparameters: {hyperparameters}')
+    return hyperparameters
