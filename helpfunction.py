@@ -361,17 +361,17 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
     for i in range(4):
         battery_temp = battery.copy()
         test_battery = [battery[i]]
-        print(f'test battery is {test_battery}')
+        # print(f'test battery is {test_battery}')
         battery_temp.remove(test_battery[0])
         if i == 3:
             validation_battery = [battery[0]]
         else:
             validation_battery = [battery[i+1]]
         battery_temp.remove(validation_battery[0])
-        print(f'validation battery is {validation_battery}')
+        # print(f'validation battery is {validation_battery}')
         train_battery_1 = [battery_temp[0]]
         train_battery_2 = [battery_temp[1]]
-        print(f'train batteries are {train_battery_1} and {train_battery_2}')
+        # print(f'train batteries are {train_battery_1} and {train_battery_2}')
         normalised_data_train_1, time_mean_train, time_std_train = load_data_normalise(train_battery_1, model_type)
         normalised_data_train_2, time_mean_train, time_std_train = load_data_normalise(train_battery_2, model_type)
         normalised_data_test, time_mean_test, time_std_test = load_data_normalise(test_battery, model_type)
