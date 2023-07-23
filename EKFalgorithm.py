@@ -72,6 +72,7 @@ class ECM():
         total_err = 0
         self.main_data_soc = []
         self.main_data_vt_est = []
+        self.useful_idx = []
         for i in range(len(idx)-1):
             SOC_est = []
             Vt_est = []
@@ -152,6 +153,7 @@ class ECM():
                 for p in range(len(SOC_est)):
                     self.main_data_soc.append(SOC_est[p])
                     self.main_data_vt_est.append(Vt_est[p])
+                    self.useful_idx.append(indx[p])
 
         plt.show()
         total_err = total_err/(len(idx)-1)
@@ -159,10 +161,12 @@ class ECM():
         return SOC_est, Vt_est, Vt_err, total_err
   
     def save_data(self):
-        df_soc = pd.DataFrame(self.main_data_soc)
-        df_soc.to_csv(f'ECM/soc_est_{self.battery_num}.csv')
-        df_vt = pd.DataFrame(self.main_data_vt_est)
-        df_vt.to_csv(f'ECM/vt_est_{self.battery_num}.csv')
+        df = np.zeros((len(self.main_data_soc), 3))
+        df[:, 0] = self.useful_idx
+        df[:, 1] = self.main_data_soc
+        df[:, 2] = self.main_data_vt_est
+        df = pd.DataFrame(df, columns=['Instance', 'SOC', 'Vt_est'])
+        df.to_csv(f'ECM/ECM_data_{self.battery_num}.csv')
 
 
 # testing if the algorithm works
@@ -170,6 +174,6 @@ class ECM():
 # ecm = ECM(192.47058823529412, 5.107529411764705, 38.4375294117647, 48.24047058823529, 38.4375294117647, 48.24047058823529, 0.4021176470588235, battery_num='B0005')
 # ecm = ECM(192.47058823529412, 8.636588235294116, 30.98729411764706, 89.02070588235294, 30.98729411764706, 89.02070588235294, 0.4021176470588235, battery_num='B0006')
 # ecm = ECM(44.94117647058823, 87.45223529411764, 1.9705882352941175, 84.31529411764706, 1.9705882352941175, 84.31529411764706, 91.7655294117647, battery_num='B0007')
-ecm = ECM(103.17647058823529, 12.949882352941176, 77.64929411764706, 68.63058823529413, 77.64929411764706, 68.63058823529413, 36.47694117647058, battery_num='B0018')
-soc_est, vt_est, vt_err, total_err = ecm.EKF(save_plot=True, save_data=True)
-ecm.save_data()
+# ecm = ECM(103.17647058823529, 12.949882352941176, 77.64929411764706, 68.63058823529413, 77.64929411764706, 68.63058823529413, 36.47694117647058, battery_num='B0018')
+# soc_est, vt_est, vt_err, total_err = ecm.EKF(save_plot=True, save_data=True)
+# ecm.save_data()
