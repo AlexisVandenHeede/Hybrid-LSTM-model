@@ -161,7 +161,6 @@ class EarlyStopper:
         self.min_delta = min_delta
         self.counter = 0
         self.min_validation_loss = np.inf
-        self.counter_1 = 0
 
     def early_stop(self, validation_loss):
         """Implement the early stopping criterion.
@@ -174,12 +173,9 @@ class EarlyStopper:
             self.min_validation_loss = validation_loss
             return False
         else:
-            if (validation_loss - self.min_validation_loss) >= self.min_delta:
+            if (validation_loss - self.min_validation_loss) >= -self.min_delta:
                 self.counter += 1
-            else:
-                self.counter_1 += 1
-            if self.counter + self.counter_1 >= self.patience:
-                print(f'counters: {self.counter}, {self.counter_1}')
+            if self.counter >= self.patience:
                 return True
             else:
                 return False
@@ -203,7 +199,7 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
     train model dataloaders, early stopper Class
     """
     epoch = []
-    early_stopper = EarlyStopper(patience=5, min_delta=0.00001)
+    early_stopper = EarlyStopper(patience=5, min_delta=0.000001)
     with torch.no_grad():
         train_loss_history = []
         val_loss_history = []
@@ -332,17 +328,17 @@ def k_fold(model_type, hyperparameters, battery, verbose, strict):
         validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, seq_len=seq_length, batch=hyperparameters[10])
         model, train_loss_history, val_loss_history = train_batch(model, train_dataset, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
         rmse_test = eval_model(model, X_test, y_test, lf)
-        if strict:
-            if rmse_test >= 1.25:
-                print(f'rmse_test = {rmse_test}')
-                print(f'rmse too high')
-                k_fold_rmse = 100
-                break
         print(f'rmse_test = {rmse_test}')
         if verbose:
             plot_loss(train_loss_history, val_loss_history)
             plot_predictions(model, X_test, y_test, model_type)
         k_fold_rmse.append(rmse_test)
+        if strict:
+            if sum(k_fold_rmse) > (i+1):
+                print(f'sum = {sum(k_fold_rmse)}')
+                print(f'rmse too high')
+                k_fold_rmse = 100
+                break
     rmse_test = np.mean(k_fold_rmse)
     print(f'average rmse_test = {rmse_test}')
     return rmse_test

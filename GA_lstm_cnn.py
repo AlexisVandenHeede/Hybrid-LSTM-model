@@ -23,7 +23,7 @@ def basis_func(scaling_factor, hidden_layers):
 def train_evaluate(ga_individual_solution):
     cuda.empty_cache()
     gene_length = 8
-    n_epoch = 50
+    n_epoch = 100
 
     seq_length = BitArray(ga_individual_solution[0:gene_length])
     num_layers_conv = BitArray(ga_individual_solution[gene_length:2*gene_length])
@@ -78,8 +78,8 @@ def train_evaluate(ga_individual_solution):
     return [loss]
 
 
-population_size = 10
-num_generations = 30
+population_size = 50
+num_generations = 10
 entire_bit_array_length = 11*8
 
 creator.create('FitnessMax', base.Fitness, weights=[-1.0])
