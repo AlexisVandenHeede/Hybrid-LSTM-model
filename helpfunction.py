@@ -295,6 +295,7 @@ def eval_model(model, X_test, y_test, criterion):
     with torch.no_grad():
         y_pred = model(X_test)
         rmse = np.sqrt(criterion(y_test, y_pred).item())
+    print(f'rmse_test = {rmse}')
     return rmse
 
 
@@ -409,7 +410,6 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
     rmse_test = np.mean(k_fold_rmse)
     print(f'average rmse_test = {rmse_test}')
     return rmse_test
-
 
 
 def add_ecm_data(battery_num):

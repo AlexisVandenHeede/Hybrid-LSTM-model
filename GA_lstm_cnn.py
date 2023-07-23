@@ -78,8 +78,8 @@ def train_evaluate(ga_individual_solution):
     return [loss]
 
 
-population_size = 3
-num_generations = 5
+population_size = 50
+num_generations = 10
 entire_bit_array_length = 11*8
 
 creator.create('FitnessMax', base.Fitness, weights=[-1.0])
