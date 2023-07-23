@@ -46,6 +46,7 @@ class ECM():
             if ttd[i] == 0 and ttd[i+10] == 0:
                 indx.append(i+2+10)
         indx = np.array(indx)
+        print(indx)
         return indx
 
     def EKF(self, save_plot=False, save_data=False):
@@ -131,6 +132,7 @@ class ECM():
             SOC_est = SOC_est[15:-5]
             indx = indx[15:-5]
             Vt_act_plot = Vt_act_plot[15:-5]
+            print(Vt_act_plot)
             total_err += np.sum(np.square(Vt_err))
 
             if save_plot:
@@ -171,9 +173,9 @@ class ECM():
 
 # testing if the algorithm works
 # please uncomment this if you want to run the optimiser
-# ecm = ECM(192.47058823529412, 5.107529411764705, 38.4375294117647, 48.24047058823529, 38.4375294117647, 48.24047058823529, 0.4021176470588235, battery_num='B0005')
+ecm = ECM(192.47058823529412, 5.107529411764705, 38.4375294117647, 48.24047058823529, 38.4375294117647, 48.24047058823529, 0.4021176470588235, battery_num='B0005')
 # ecm = ECM(192.47058823529412, 8.636588235294116, 30.98729411764706, 89.02070588235294, 30.98729411764706, 89.02070588235294, 0.4021176470588235, battery_num='B0006')
 # ecm = ECM(44.94117647058823, 87.45223529411764, 1.9705882352941175, 84.31529411764706, 1.9705882352941175, 84.31529411764706, 91.7655294117647, battery_num='B0007')
 # ecm = ECM(103.17647058823529, 12.949882352941176, 77.64929411764706, 68.63058823529413, 77.64929411764706, 68.63058823529413, 36.47694117647058, battery_num='B0018')
-# soc_est, vt_est, vt_err, total_err = ecm.EKF(save_plot=True, save_data=True)
+soc_est, vt_est, vt_err, total_err = ecm.EKF(save_plot=True, save_data=True)
 # ecm.save_data()
