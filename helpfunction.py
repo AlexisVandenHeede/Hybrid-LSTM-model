@@ -383,4 +383,3 @@ def add_ecm_data(battery_num):
     return print('ECM data added')
 
 
-add_ecm_data('B0018')
