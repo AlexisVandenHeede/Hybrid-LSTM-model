@@ -85,38 +85,32 @@ def train_test_validation_split(X, y, test_size, cv_size):
     return X_train, y_train, X_test, y_test, X_cv, y_cv
 
 
-def data_split(normalised_data, test_size, cv_size, seq_length):
+def data_split(normalised_data, test_size, cv_size, seq_length, model_type):
     """ Split data into X Y  train, test and validation sets"""
     y = normalised_data['TTD']
-    X = normalised_data.drop(['TTD', 'Time'], axis=1)
+    if model_type == 'data_padded' or model_type == 'data':
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0'], axis=1)
+    elif model_type == 'hybrid_padded':
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0.1', 'Unnamed: 0'], axis=1)
     X_train, y_train, X_test, y_test, X_cv, y_cv = train_test_validation_split(X, y, test_size, cv_size)
     x_tr = []
     y_tr = []
-    # this for loop is very inefficient, as it fills ram
-    # for i in range(seq_length, len(X_train)):
-    #     print('2')
-    #     x_tr.append(X_train.values[i-seq_length:i])
-    #     y_tr.append(y_train.values[i])
     x_tr = X_train.values[:]
     y_tr = y_train.values[seq_length:]
     x_tr = np.array([x_tr[i-seq_length:i] for i in range(seq_length, len(x_tr))])
     x_tr = torch.tensor(np.array(x_tr))
     y_tr = torch.tensor(y_tr).unsqueeze(1).unsqueeze(2)
+
     x_v = []
     y_v = []
-    # for i in range(seq_length, len(X_cv)):
-    #     x_v.append(X_cv.values[i-seq_length:i])
-    #     y_v.append(y_cv.values[i])
     x_v = X_cv.values[:]
     y_v = y_cv.values[seq_length:]
     x_v = np.array([x_v[i-seq_length:i] for i in range(seq_length, len(x_v))])
     x_v = torch.tensor(np.array(x_v))
     y_v = torch.tensor(y_v).unsqueeze(1).unsqueeze(2)
+
     x_t = []
     y_t = []
-    # for i in range(seq_length, len(X_test)):
-    #     x_t.append(X_test.values[i-seq_length:i])
-    #     y_t.append(y_test.values[i])
     x_t = X_test.values[:]
     y_t = y_test.values[seq_length:]
     x_t = np.array([x_t[i-seq_length:i] for i in range(seq_length, len(x_t))])
