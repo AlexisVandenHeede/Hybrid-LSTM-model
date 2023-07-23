@@ -247,10 +247,10 @@ def plot_loss(train_loss_history, val_loss_history):
     plt.show()
 
 
-def plot_predictions(model, X_test, y_test, model_type):
+def plot_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
     predictions = model(X_test)
-    predictions = predictions.cpu()
-    y_test = y_test.cpu()
+    predictions = predictions.cpu() * ttd_std + ttd_mean
+    y_test = y_test.cpu() * ttd_std + ttd_mean
     plt.plot(y_test.squeeze(), label='Actual')
     plt.plot(predictions.detach().squeeze(), label='Prediction')
     plt.xlabel('Time')
@@ -303,16 +303,16 @@ def k_fold(model_type, hyperparameters, battery, verbose, strict):
     for i in range(4):
         battery_temp = battery.copy()
         test_battery = [battery[i]]
-        # print(f'test battery is {test_battery}')
+        print(f'test battery is {test_battery}')
         battery_temp.remove(test_battery[0])
         if i == 3:
             validation_battery = [battery[0]]
         else:
             validation_battery = [battery[i+1]]
         battery_temp.remove(validation_battery[0])
-        # print(f'validation battery is {validation_battery}')
+        print(f'validation battery is {validation_battery}')
         train_battery = battery_temp
-        # print(f'train battery is {train_battery}')
+        print(f'train battery is {train_battery}')
         normalised_data_train, time_mean_train, time_std_train = load_data_normalise(train_battery, model_type)
         normalised_data_test, time_mean_test, time_std_test = load_data_normalise(test_battery, model_type)
         normalised_data_validation, time_mean_validation, time_std_validation = load_data_normalise(validation_battery, model_type)
@@ -357,6 +357,59 @@ def k_fold_data(normalised_data, seq_length):
     x_tr = x_tr.to(device).float()
     y_tr = y_tr.to(device).float()
     return x_tr, y_tr
+
+
+def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
+    k_fold_rmse = []
+    for i in range(4):
+        battery_temp = battery.copy()
+        test_battery = [battery[i]]
+        print(f'test battery is {test_battery}')
+        battery_temp.remove(test_battery[0])
+        if i == 3:
+            validation_battery = [battery[0]]
+        else:
+            validation_battery = [battery[i+1]]
+        battery_temp.remove(validation_battery[0])
+        print(f'validation battery is {validation_battery}')
+        train_battery_1 = [battery_temp[0]]
+        train_battery_2 = [battery_temp[1]]
+        print(f'train batteries are {train_battery_1} and {train_battery_2}')
+        normalised_data_train_1, time_mean_train, time_std_train = load_data_normalise(train_battery_1, model_type)
+        normalised_data_train_2, time_mean_train, time_std_train = load_data_normalise(train_battery_2, model_type)
+        normalised_data_test, time_mean_test, time_std_test = load_data_normalise(test_battery, model_type)
+        normalised_data_validation, time_mean_validation, time_std_validation = load_data_normalise(validation_battery, model_type)
+        seq_length = hyperparameters[0]
+        X_train_1, y_train_1 = k_fold_data(normalised_data_train_1, seq_length)
+        X_train_2, y_train_2 = k_fold_data(normalised_data_train_2, seq_length)
+        X_test, y_test = k_fold_data(normalised_data_test, seq_length)
+        X_validation, y_validation = k_fold_data(normalised_data_validation, seq_length)
+        model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], hyperparameters[0], X_train_1.shape[2])
+        lf = torch.nn.MSELoss()
+        opimiser = torch.optim.Adam(model.parameters(), lr=hyperparameters[9])
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model.to(device)
+        train_dataset_1 = SeqDataset(x_data=X_train_1, y_data=y_train_1, seq_len=seq_length, batch=hyperparameters[10])
+        train_dataset_2 = SeqDataset(x_data=X_train_2, y_data=y_train_2, seq_len=seq_length, batch=hyperparameters[10])
+        validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, seq_len=seq_length, batch=hyperparameters[10])
+        model, train_loss_history, val_loss_history = train_batch(model, train_dataset_1, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
+        model, train_loss_history, val_loss_history = train_batch(model, train_dataset_2, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
+        rmse_test = eval_model(model, X_test, y_test, lf)
+        print(f'rmse_test = {rmse_test}')
+        if plot:
+            plot_loss(train_loss_history, val_loss_history)
+            plot_predictions(model, X_test, y_test, time_mean_test, time_std_test, model_type)
+        k_fold_rmse.append(rmse_test)
+        if strict:
+            if sum(k_fold_rmse) > (i+1):
+                print(f'sum = {sum(k_fold_rmse)}')
+                print(f'rmse too high')
+                k_fold_rmse = 100
+                break
+    rmse_test = np.mean(k_fold_rmse)
+    print(f'average rmse_test = {rmse_test}')
+    return rmse_test
+
 
 
 def add_ecm_data(battery_num):
