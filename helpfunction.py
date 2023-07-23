@@ -336,8 +336,8 @@ def k_fold(model_type, hyperparameters, battery, verbose, strict):
             plot_predictions(model, X_test, y_test, model_type)
         k_fold_rmse.append(rmse_test)
         if strict:
-            if sum(k_fold_rmse) > (i+1):
-                print(f'sum = {sum(k_fold_rmse)}')
+            if np.mean(k_fold_rmse) > 1:
+                print(f'average = {np.mean(k_fold_rmse)}')
                 print(f'rmse too high')
                 k_fold_rmse = 100
                 break
@@ -402,8 +402,8 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
             plot_predictions(model, X_test, y_test, time_mean_test, time_std_test, model_type)
         k_fold_rmse.append(rmse_test)
         if strict:
-            if sum(k_fold_rmse) > (i+1):
-                print(f'sum = {sum(k_fold_rmse)}')
+            if np.mean(k_fold_rmse) > 1:
+                print(f'average = {np.mean(k_fold_rmse)}')
                 print(f'rmse too high')
                 k_fold_rmse = 100
                 break
