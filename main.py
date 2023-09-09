@@ -1,92 +1,80 @@
-from helpfunction import load_data_normalise, data_split, SeqDataset, train_batch, plot_loss, plot_predictions, bit_to_hyperparameters, eval_model
+from helpfunction import load_data_normalise, load_data_normalise_ind, data_split, SeqDataset, train_batch, plot_loss, plot_predictions, bit_to_hyperparameters, eval_model, train_batch_ind
 from ParametricLSTMCNN import ParametricLSTMCNN
 import torch
+import random
 
+# everything that was here before - idk if it's needed
+# verbose = True
+# battery = ['B0005', 'B0006', 'B0007', 'B0018']
+# model_type = 'data_padded'
+# n_epoch = 100
+# test_size = 0.1
+# cv_size = 0.1
+# # data driven padded
+# # [0, 1, 0, 0, 0, 2, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 2, 0, 0, 0, 1, 1, 0, 0, 2, 1, 1, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0, 2, 1, 0, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 2, 1, 1, 1, 0, 2, 0, 0, 0, 0]
+# # rmse = 0.5094981116794153
+# #  [0, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 1, 2, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 2, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 2, 2, 2]
+# # 0.35047935866891333
+# #  [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 2, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 2, 0, 0, 1, 0, 0, 1, 0, 0, 0, 2, 1, 1, 0, 2, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 1, 0, 2, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 1]
+# #  0.3780989659138594
+# bit = [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 2, 1, 2, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 1, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 2, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 2, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1]
+# #  0.31487230597996485
+# # [0, 1, 0, 0, 2, 2, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 2, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 2, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 2, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 1, 1, 0, 0]
+# #  0.33249841991347645
+# # hybrid padded
+# # bit = [0, 1, 2, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, 2, 0, 1, 0, 0, 1, 1, 1, 2, 0, 0, 0, 1, 2, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 2, 1, 0, 0, 1, 1, 0, 1, 0, 1, 2, 0, 0, 0, 2, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0]
+# #  0.3842639607759947
+# # [1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 3, 2, 0, 0, 2, 1, 0, 0, 2, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0]
+# # Fitness =  0.44335262456618796
+# seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch, hyperparameters = bit_to_hyperparameters(bit)
+# # hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
+
+# if verbose:
+#     print(f'model type is {model_type}')
+# normalised_data, time_mean, time_std = load_data_normalise(battery, model_type)
+# # pad_data = create_time_padding(normalised_data, n=5)
+# # print(f'data is paddded')
+# # data initialisation
+# X_train, y_train, X_test, y_test, X_val, y_val = data_split(normalised_data, test_size=test_size, cv_size=cv_size, seq_length=seq_length, model_type=model_type)
+# # hyperparameters
+# inputlstm = X_train.shape[2]
+
+# # model initialisation
+# model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, inputlstm)
+# lf = torch.nn.MSELoss()
+# opimiser = torch.optim.Adam(model.parameters(), lr=lr)
+
+# # device
+# device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# print(f'device is {device}')
+# model.to(device)
+
+# # # data loader
+# # train_dataset = SeqDataset(x_data=X_train, y_data=y_train, seq_len=seq_length, batch=batch_size)
+# # validation_dataset = SeqDataset(x_data=X_val, y_data=y_val, seq_len=seq_length, batch=batch_size)
+
+# """
+# train_dataset.to(device)
+# validation_dataset.to(device)
+# # test_dataset.to(device)
+# """
+
+# # # Training model
+# # model, train_loss_history, val_loss_history = train_batch(model, train_dataset, validation_dataset, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
+# # eval_model(model, X_test, y_test, criterion=lf)
+# # plot_loss(train_loss_history, val_loss_history)
+# # plot_predictions(model, X_test, y_test, ttd_mean=time_mean, ttd_std=time_std, model_type=model_type)
+
+
+### data split using individual batteries and trained to flip between batteries
 verbose = True
 battery = ['B0005', 'B0006', 'B0007', 'B0018']
 model_type = 'data_padded'
 n_epoch = 100
 test_size = 0.1
 cv_size = 0.1
-# data driven padded
-# [0, 1, 0, 0, 0, 2, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 2, 0, 0, 0, 1, 1, 0, 0, 2, 1, 1, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0, 2, 1, 0, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 2, 1, 1, 1, 0, 2, 0, 0, 0, 0]
-# rmse = 0.5094981116794153
-#  [0, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 1, 2, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 2, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 2, 2, 2]
-# 0.35047935866891333
-#  [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 2, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 2, 0, 0, 1, 0, 0, 1, 0, 0, 0, 2, 1, 1, 0, 2, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 1, 0, 2, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 1]
-#  0.3780989659138594
+# some random data-padded hyperparameters 
 bit = [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 2, 1, 2, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 1, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 2, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 2, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1]
-#  0.31487230597996485
-# [0, 1, 0, 0, 2, 2, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 2, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 2, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 2, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 1, 1, 0, 0]
-#  0.33249841991347645
-# hybrid padded
-# bit = [0, 1, 2, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, 2, 0, 1, 0, 0, 1, 1, 1, 2, 0, 0, 0, 1, 2, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 2, 1, 0, 0, 1, 1, 0, 1, 0, 1, 2, 0, 0, 0, 2, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0]
-#  0.3842639607759947
-# [1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 3, 2, 0, 0, 2, 1, 0, 0, 2, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0]
-# Fitness =  0.44335262456618796
-seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch, hyperparameters = bit_to_hyperparameters(bit)
-# hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
-
-if verbose:
-    print(f'model type is {model_type}')
-normalised_data, time_mean, time_std = load_data_normalise(battery, model_type)
-# pad_data = create_time_padding(normalised_data, n=5)
-# print(f'data is paddded')
-# data initialisation
-X_train, y_train, X_test, y_test, X_val, y_val = data_split(normalised_data, test_size=test_size, cv_size=cv_size, seq_length=seq_length, model_type=model_type)
-# hyperparameters
-inputlstm = X_train.shape[2]
-
-# model initialisation
-model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, inputlstm)
-lf = torch.nn.MSELoss()
-opimiser = torch.optim.Adam(model.parameters(), lr=lr)
-
-# device
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f'device is {device}')
-model.to(device)
-
-# data loader
-train_dataset = SeqDataset(x_data=X_train, y_data=y_train, seq_len=seq_length, batch=batch_size)
-validation_dataset = SeqDataset(x_data=X_val, y_data=y_val, seq_len=seq_length, batch=batch_size)
-
-"""
-train_dataset.to(device)
-validation_dataset.to(device)
-# test_dataset.to(device)
-"""
-
-# Training model
-model, train_loss_history, val_loss_history = train_batch(model, train_dataset, validation_dataset, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
-eval_model(model, X_test, y_test, criterion=lf)
-plot_loss(train_loss_history, val_loss_history)
-plot_predictions(model, X_test, y_test, ttd_mean=time_mean, ttd_std=time_std, model_type=model_type)
-
-
-# with seperate data 
-verbose = True
-battery = ['B0005', 'B0006', 'B0007', 'B0018']
-model_type = 'data_padded'
-n_epoch = 100
-test_size = 0.1
-cv_size = 0.1
-# data driven padded
-# [0, 1, 0, 0, 0, 2, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 2, 0, 0, 0, 1, 1, 0, 0, 2, 1, 1, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0, 2, 1, 0, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 2, 1, 1, 1, 0, 2, 0, 0, 0, 0]
-# rmse = 0.5094981116794153
-#  [0, 1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 1, 2, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 2, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 2, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 2, 2, 2]
-# 0.35047935866891333
-#  [0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 2, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 0, 1, 2, 0, 0, 1, 0, 0, 1, 0, 0, 0, 2, 1, 1, 0, 2, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 2, 1, 0, 2, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 1]
-#  0.3780989659138594
-bit = [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 2, 1, 2, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 1, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 2, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 2, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1]
-#  0.31487230597996485
-# [0, 1, 0, 0, 2, 2, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 2, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 2, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 2, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 1, 1, 0, 0]
-#  0.33249841991347645
-# hybrid padded
-# bit = [0, 1, 2, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, 2, 0, 1, 0, 0, 1, 1, 1, 2, 0, 0, 0, 1, 2, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 2, 1, 0, 0, 1, 1, 0, 1, 0, 1, 2, 0, 0, 0, 2, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0]
-#  0.3842639607759947
-# [1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 3, 2, 0, 0, 2, 1, 0, 0, 2, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 2, 2, 0, 0, 0, 0, 0, 0, 0]
-# Fitness =  0.44335262456618796
 seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch, hyperparameters = bit_to_hyperparameters(bit)
 
 if verbose:
@@ -106,13 +94,41 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'device is {device}')
 model.to(device)
 
-for i in battery:
-    normalized_data, time_mean, time_std = load_data_normalise([i], model_type)	
-    X_train, y_train, X_test, y_test, X_val, y_val = data_split(normalized_data, test_size=test_size, cv_size=cv_size, seq_length=seq_length, model_type=model_type)
-    train_dataset = SeqDataset(x_data=X_train, y_data=y_train, seq_len=seq_length, batch=batch_size)
-    validation_dataset = SeqDataset(x_data=X_val, y_data=y_val, seq_len=seq_length, batch=batch_size)
-    model, train_loss_history, val_loss_history = train_batch(model, train_dataset, validation_dataset, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
+for i in range(4):
+    rand_val = random.randint(0, 3)
+    battery_copy = battery.copy()
+    test_battery = battery_copy[rand_val]
+    battery_copy.pop(rand_val)
+    rand_val_val = random.randint(0, 2)
+    val_battery = battery_copy[rand_val_val]
+    battery_copy.pop(rand_val_val)
+    train_battery_1 = battery_copy[0]
+    train_battery_2 = battery_copy[1]
+    print(f'test battery is {train_battery_1}')
+    normalised_data_bat_1, _, _ = load_data_normalise_ind(train_battery_1, model_type)
+    normalised_data_bat_2, _, _ = load_data_normalise_ind(train_battery_2, model_type)
+    normalised_data_val, _, _ = load_data_normalise_ind(val_battery, model_type)
+    normalised_data_test, mean_ttd, std_ttd = load_data_normalise_ind(test_battery, model_type)
 
-    eval_model(model, X_test, y_test, criterion=lf)
+    x_train_bat_1, y_train_bat_1, _, _, _, _ = data_split(normalised_data_bat_1, test_size=0.01, cv_size=0.01, seq_length=seq_length, model_type=model_type)
+    x_train_bat_2, y_train_bat_2, _, _, _, _ = data_split(normalised_data_bat_2, test_size=0.01, cv_size=0.01, seq_length=seq_length, model_type=model_type)
+    x_val, y_val, _, _, _, _ = data_split(normalised_data_bat_1, test_size=0.01, cv_size=0.01, seq_length=seq_length, model_type=model_type)
+    x_test, y_test, _, _, _, _ = data_split(normalised_data_test, test_size=0.01, cv_size=0.01, seq_length=seq_length, model_type=model_type)
+
+    trainloader_1 = SeqDataset(x_train_bat_1, y_data=y_train_bat_1, seq_len=seq_length, batch=batch_size)
+    trainloader_2 = SeqDataset(x_train_bat_2, y_data=y_train_bat_2, seq_len=seq_length, batch=batch_size)
+    val_loader = SeqDataset(x_val, y_data=y_val, seq_len=seq_length, batch=batch_size)
+
+    # Training model
+    model, train_loss_history, val_loss_history = train_batch_ind(model, trainloader_1, trainloader_2, val_loader, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
+
+    # Evaluation
+    eval_model(model, x_test, y_test, criterion=lf)
+
+    # Plotting
     plot_loss(train_loss_history, val_loss_history)
-    plot_predictions(model, X_test, y_test, ttd_mean=time_mean, ttd_std=time_std, model_type=model_type)
+    plot_predictions(model, x_test, y_test, ttd_mean=mean_ttd, ttd_std=std_ttd, model_type=model_type)
+
+
+
+

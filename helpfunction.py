@@ -67,6 +67,29 @@ def load_data_normalise(battery, model_type):
     normalised_data = (data - data.mean(axis=0)) / data.std(axis=0)
     return normalised_data, time_mean, time_std
 
+def load_data_normalise_ind(name, model_type):
+    """
+    Load the data and normalise it
+    return: normalised data, mean time, std time
+    """
+    data = []
+    if model_type == 'data':
+        data.append(pd.read_csv("data/" + name + "_TTD1.csv"))
+    elif model_type == 'hybrid':
+        data.append(pd.read_csv("data/" + name + "_TTD - with SOC.csv"))
+    elif model_type == 'data_padded':
+        data.append(pd.read_csv(f"data/padded_data_data_[{name}].csv"))
+    elif model_type == 'hybrid_padded':
+        data.append(pd.read_csv(f"data/padded_data_hybrid_w_ecm[{name}].csv"))
+    else:
+        print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
+        raise NameError
+    data = pd.concat(data)
+    time = data['Time']
+    time_mean = time.mean(axis=0)
+    time_std = time.std(axis=0)
+    normalised_data = (data - data.mean(axis=0)) / data.std(axis=0)
+    return normalised_data, time_mean, time_std
 
 def train_test_validation_split(X, y, test_size, cv_size):
     """
@@ -189,6 +212,60 @@ def basis_func(scaling_factor, hidden_layers):
     return basis_function
 
 
+def train_batch_ind(model, train_dataloader1, train_dataloader2, val_dataloader, n_epoch, lf, optimiser, verbose):
+    """
+    train model dataloaders, early stopper Class
+    """
+    epoch = []
+    early_stopper = EarlyStopper(patience=5, min_delta=0.00001)
+    with torch.no_grad():
+        train_loss_history = []
+        val_loss_history = []
+
+    for i in range(n_epoch):
+        loss_v = 0
+        loss = 0
+        if n_epoch % 2 == 0:
+            for l, (x, y) in enumerate(train_dataloader1):
+                model.train()
+                target_train = model(x)
+                loss_train = lf(target_train, y)
+                loss += loss_train.item()
+                epoch.append(i+1)
+                optimiser.zero_grad()
+                loss_train.backward()
+                optimiser.step()
+            train_loss = loss/len(train_dataloader1)
+        else:
+            for l, (x, y) in enumerate(train_dataloader2):
+                model.train()
+                target_train = model(x)
+                loss_train = lf(target_train, y)
+                loss += loss_train.item()
+                epoch.append(i+1)
+                optimiser.zero_grad()
+                loss_train.backward()
+                optimiser.step()
+            train_loss = loss/len(train_dataloader2)
+
+        for k, (x, y) in enumerate(val_dataloader):
+            model.eval()
+            target_val = model(x)
+            loss_val = lf(target_val, y)
+            loss_v += loss_val.item()
+
+        val_loss = loss_v/len(val_dataloader)
+        train_loss_history.append(train_loss)
+        val_loss_history.append(val_loss)
+        if verbose:
+            print(f"Epoch {i+1}: train loss = {train_loss:.10f}, val loss = {val_loss:.10f}")
+        # earlystopper
+        if early_stopper.early_stop(val_loss):
+            print("Early stopping")
+            break
+
+    return model, train_loss_history, val_loss_history
+
 def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser, verbose):
     """
     train model dataloaders, early stopper Class
@@ -211,6 +288,7 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
             optimiser.zero_grad()
             loss_train.backward()
             optimiser.step()
+        train_loss = loss/len(train_dataloader)
 
         for k, (x, y) in enumerate(val_dataloader):
             model.eval()
@@ -218,7 +296,6 @@ def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser,
             loss_val = lf(target_val, y)
             loss_v += loss_val.item()
 
-        train_loss = loss/len(train_dataloader)
         val_loss = loss_v/len(val_dataloader)
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
@@ -284,7 +361,7 @@ class SeqDataset:
 def eval_model(model, X_test, y_test, criterion):
     """
     WIP
-    """
+    """ 
     model.eval()
     with torch.no_grad():
         y_pred = model(X_test)
