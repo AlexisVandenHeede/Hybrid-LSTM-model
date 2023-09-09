@@ -1,4 +1,4 @@
-from helpfunction import load_data_normalise, load_data_normalise_ind, data_split, SeqDataset, train_batch, plot_loss, plot_predictions, bit_to_hyperparameters, eval_model, train_batch_ind
+from helpfunction import load_data_normalise_ind, SeqDataset, plot_loss, plot_predictions, bit_to_hyperparameters, eval_model, train_batch_ind, k_fold_data
 from ParametricLSTMCNN import ParametricLSTMCNN
 import torch
 import random
@@ -95,25 +95,31 @@ print(f'device is {device}')
 model.to(device)
 
 for i in range(4):
-    rand_val = random.randint(0, 3)
-    battery_copy = battery.copy()
-    test_battery = battery_copy[rand_val]
-    battery_copy.pop(rand_val)
-    rand_val_val = random.randint(0, 2)
-    val_battery = battery_copy[rand_val_val]
-    battery_copy.pop(rand_val_val)
-    train_battery_1 = battery_copy[0]
-    train_battery_2 = battery_copy[1]
-    print(f'test battery is {train_battery_1}')
+    battery_temp = battery.copy()
+    test_battery = battery[i]
+    print(f'test battery is {test_battery}')
+    battery_temp.remove(test_battery)
+    if i == 3:
+        val_battery = battery[0]
+    else:
+        val_battery = battery[i+1]
+    battery_temp.remove(val_battery)
+    print(f'validation battery is {val_battery}')
+    train_battery_1 = battery_temp[0]
+    train_battery_2 = battery_temp[1]
+    print(f'train batteries are {train_battery_1} and {train_battery_2}')
+    
     normalised_data_bat_1, _, _ = load_data_normalise_ind(train_battery_1, model_type)
     normalised_data_bat_2, _, _ = load_data_normalise_ind(train_battery_2, model_type)
     normalised_data_val, _, _ = load_data_normalise_ind(val_battery, model_type)
     normalised_data_test, mean_ttd, std_ttd = load_data_normalise_ind(test_battery, model_type)
 
-    x_train_bat_1, y_train_bat_1, _, _, _, _ = data_split(normalised_data_bat_1, test_size=0.01, cv_size=0.01, seq_length=seq_length, model_type=model_type)
-    x_train_bat_2, y_train_bat_2, _, _, _, _ = data_split(normalised_data_bat_2, test_size=0.01, cv_size=0.01, seq_length=seq_length, model_type=model_type)
-    x_val, y_val, _, _, _, _ = data_split(normalised_data_bat_1, test_size=0.01, cv_size=0.01, seq_length=seq_length, model_type=model_type)
-    x_test, y_test, _, _, _, _ = data_split(normalised_data_test, test_size=0.01, cv_size=0.01, seq_length=seq_length, model_type=model_type)
+    x_train_bat_1, y_train_bat_1 = k_fold_data(normalised_data_bat_1, seq_length=seq_length, model_type=model_type)
+    x_train_bat_2, y_train_bat_2 = k_fold_data(normalised_data_bat_2, seq_length=seq_length, model_type=model_type)
+    x_val, y_val = k_fold_data(normalised_data_bat_1, seq_length=seq_length, model_type=model_type)
+    x_test, y_test = k_fold_data(normalised_data_test, seq_length=seq_length, model_type=model_type)
+
+    # print(f'shapes of x_train_bat_1, x_train_bat_2, x_val, x_test are {x_train_bat_1.shape}, {x_train_bat_2.shape}, {x_val.shape}, {x_test.shape}')
 
     trainloader_1 = SeqDataset(x_train_bat_1, y_data=y_train_bat_1, seq_len=seq_length, batch=batch_size)
     trainloader_2 = SeqDataset(x_train_bat_2, y_data=y_train_bat_2, seq_len=seq_length, batch=batch_size)

@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import torch
 from ParametricLSTMCNN import ParametricLSTMCNN
 from bitstring import BitArray
-import random
 
 
 def create_time_padding(battery, model_type, n):
@@ -264,6 +263,10 @@ def train_batch_ind(model, train_dataloader1, train_dataloader2, val_dataloader,
         if early_stopper.early_stop(val_loss):
             print("Early stopping")
             break
+        if i > 10:
+            if train_loss > 0.9:
+                print('no learning taking place')
+                break
 
     return model, train_loss_history, val_loss_history
 
@@ -419,9 +422,12 @@ def k_fold(model_type, hyperparameters, battery, verbose, strict):
     return rmse_test
 
 
-def k_fold_data(normalised_data, seq_length):
+def k_fold_data(normalised_data, seq_length, model_type):
+    if model_type == 'data_padded' or model_type == 'data':
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0'], axis=1)
+    elif model_type == 'hybrid_padded':
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0.1', 'Unnamed: 0'], axis=1)
     y = normalised_data['TTD']
-    X = normalised_data.drop(['TTD', 'Time'], axis=1)
     x_tr = X.values[:]
     y_tr = y.values[seq_length:]
     x_tr = np.array([x_tr[i-seq_length:i] for i in range(seq_length, len(x_tr))])
@@ -437,27 +443,28 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
     k_fold_rmse = []
     k_fold_raw_test = []
     for i in range(4):
-        rand_val = random.randint(0, 3)
-        battery_copy = battery.copy()
-        test_battery = battery_copy[rand_val]
-        battery_copy.pop(rand_val)
-        rand_val_val = random.randint(0, 2)
-        validation_battery = battery_copy[rand_val_val]
-        battery_copy.pop(rand_val_val)
-        train_battery_1 = battery_copy[0]
-        train_battery_2 = battery_copy[1]
-        # print(f'test battery is {test_battery}')
-        # print(f'validation battery is {validation_battery}')
-        # print(f'train batteries are {train_battery_1} and {train_battery_2}')
-        normalised_data_train_1, _, _ = load_data_normalise_ind(train_battery_1, model_type)
-        normalised_data_train_2, _, _ = load_data_normalise_ind(train_battery_2, model_type)
-        normalised_data_test, time_mean_test, time_std_test = load_data_normalise_ind(test_battery, model_type)
-        normalised_data_validation, _, _ = load_data_normalise_ind(validation_battery, model_type)
+        battery_temp = battery.copy()
+        test_battery = [battery[i]]
+        print(f'test battery is {test_battery}')
+        battery_temp.remove(test_battery[0])
+        if i == 3:
+            validation_battery = [battery[0]]
+        else:
+            validation_battery = [battery[i+1]]
+        battery_temp.remove(validation_battery[0])
+        print(f'validation battery is {validation_battery}')
+        train_battery_1 = [battery_temp[0]]
+        train_battery_2 = [battery_temp[1]]
+        print(f'train batteries are {train_battery_1} and {train_battery_2}')
+        normalised_data_train_1, _, _ = load_data_normalise(train_battery_1, model_type)
+        normalised_data_train_2, _, _ = load_data_normalise(train_battery_2, model_type)
+        normalised_data_test, time_mean_test, time_std_test = load_data_normalise(test_battery, model_type)
+        normalised_data_validation, _, _ = load_data_normalise(validation_battery, model_type)
         seq_length = hyperparameters[0]
-        X_train_1, y_train_1 = k_fold_data(normalised_data_train_1, seq_length)
-        X_train_2, y_train_2 = k_fold_data(normalised_data_train_2, seq_length)
-        X_test, y_test = k_fold_data(normalised_data_test, seq_length)
-        X_validation, y_validation = k_fold_data(normalised_data_validation, seq_length)
+        X_train_1, y_train_1 = k_fold_data(normalised_data_train_1, seq_length, model_type)
+        X_train_2, y_train_2 = k_fold_data(normalised_data_train_2, seq_length, model_type)
+        X_test, y_test = k_fold_data(normalised_data_test, seq_length, model_type)
+        X_validation, y_validation = k_fold_data(normalised_data_validation, seq_length, model_type)
         model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], hyperparameters[0], X_train_1.shape[2])
         lf = torch.nn.MSELoss()
         opimiser = torch.optim.Adam(model.parameters(), lr=hyperparameters[9])
@@ -466,7 +473,7 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
         train_dataset_1 = SeqDataset(x_data=X_train_1, y_data=y_train_1, seq_len=seq_length, batch=hyperparameters[10])
         train_dataset_2 = SeqDataset(x_data=X_train_2, y_data=y_train_2, seq_len=seq_length, batch=hyperparameters[10])
         validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, seq_len=seq_length, batch=hyperparameters[10])
-        model, train_loss_history, val_loss_history = train_batch_ind(model, train_dataset_1, train_dataset_2, validation_dataset, n_epoch=hyperparameters[11]*2, lf=lf, optimiser=opimiser, verbose=True)
+        model, train_loss_history, val_loss_history = train_batch_ind(model, train_dataset_1, train_dataset_2, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
         rmse_test, raw_test = eval_model(model, X_test, y_test, lf)
         print(f'rmse_test = {rmse_test}')
         if plot:

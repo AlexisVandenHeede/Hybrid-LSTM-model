@@ -51,7 +51,7 @@ def train_evaluate(ga_individual_solution):
 
     # resize hyperparameterss to be within range
     seq_length = int(np.interp(seq_length, [0, 255], [1, 50]))
-    num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [1, 10]))
+    num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [1, 8]))
     output_channels = int(np.interp(output_channels, [0, 255], [1, 10]))
     kernel_sizes = int(np.interp(kernel_sizes, [0, 255], [1, 10]))
     stride_sizes = int(np.interp(stride_sizes, [0, 255], [1, 10]))
@@ -74,11 +74,12 @@ def train_evaluate(ga_individual_solution):
 
     hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
     print(f'hyperparameters: {hyperparameters}')
-    loss = kfold_ind(model_type='hybrid_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=False, strict=True)
+    loss = kfold_ind(model_type='data_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=False, strict=True)
     return [loss]
 
 
-population_size = 100
+np.random.seed(121)
+population_size = 10
 num_generations = 3
 entire_bit_array_length = 11*8
 
