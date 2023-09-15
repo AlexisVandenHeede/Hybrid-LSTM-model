@@ -217,7 +217,7 @@ def train_batch_ind(model, train_dataloader1, train_dataloader2, val_dataloader,
     train model dataloaders, early stopper Class
     """
     epoch = []
-    early_stopper = EarlyStopper(patience=5, min_delta=0.00001)
+    early_stopper = EarlyStopper(patience=10, min_delta=0.00001)
     with torch.no_grad():
         train_loss_history = []
         val_loss_history = []
@@ -332,6 +332,28 @@ def plot_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
     plt.ylabel('TTD')
     plt.legend()
     plt.title(f'Predictions vs Actual for {model_type} model')
+    plt.show()
+
+
+def plot_average_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
+    df = pd.DataFrame()
+    predictions = model(X_test)
+    df['predictions'] = np.reshape(predictions.cpu().detach().numpy(), -1) * ttd_std + ttd_mean
+    df.insert(1, 'y_test', np.reshape(y_test.cpu().detach().numpy(), -1) * ttd_std + ttd_mean) 
+    # print(df.describe())
+    threshold = 2000
+    cycle_starts = df['y_test'].diff().abs() > threshold
+    cycle_mean = df.groupby(cycle_starts.cumsum())[["predictions", "y_test"]].mean()
+    # print(cycle_mean.describe())
+    plt.plot(cycle_mean['y_test'], label='Actual')
+    plt.plot(cycle_mean['predictions'], label='Prediction')
+
+    # plt.plot(y_test.squeeze(), label='Actual')
+    # plt.plot(predictions.detach().squeeze(), label='Prediction')
+    # plt.xlabel('Time')
+    # plt.ylabel('TTD')
+    plt.legend()
+    plt.title(f'Average Predictions vs Actual for {model_type} model')
     plt.show()
 
 
