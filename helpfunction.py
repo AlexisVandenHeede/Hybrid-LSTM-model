@@ -336,17 +336,36 @@ def plot_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
 
 
 def plot_average_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
+    debug = True
     df = pd.DataFrame()
     predictions = model(X_test)
     df['predictions'] = np.reshape(predictions.cpu().detach().numpy(), -1) * ttd_std + ttd_mean
-    df.insert(1, 'y_test', np.reshape(y_test.cpu().detach().numpy(), -1) * ttd_std + ttd_mean) 
+    df.insert(1, 'y_test', np.reshape(y_test.cpu().detach().numpy(), -1) * ttd_std + ttd_mean)
     # print(df.describe())
     threshold = 2000
     cycle_starts = df['y_test'].diff().abs() > threshold
+    if debug:
+        predictions = model(X_test)
+        predictions = predictions.cpu() * ttd_std + ttd_mean
+        y_test = y_test.cpu() * ttd_std + ttd_mean
+        plt.plot(y_test.squeeze(), label='Actual')
+        plt.plot(predictions.detach().squeeze(), label='Prediction')
+        print(type(cycle_starts))
+        print(df[cycle_starts].index)
+        # add cycle start as vertical line
+        plt.vlines(x=df[cycle_starts].index, ymin=-200, ymax=3500, color='r', linestyles='dashed', label='Cycle start')
+        plt.xlabel('Time')
+        plt.ylabel('TTD')
+        plt.legend()
+        plt.show()
+
+    # linearly interpolate the data between each cycle start so that theyre all the same length
+
+
     cycle_mean = df.groupby(cycle_starts.cumsum())[["predictions", "y_test"]].mean()
     # print(cycle_mean.describe())
-    plt.plot(cycle_mean['y_test'], label='Actual')
-    plt.plot(cycle_mean['predictions'], label='Prediction')
+    plt.scatter(cycle_mean.index, cycle_mean['y_test'], label='Actual')
+    plt.scatter(cycle_mean.index, cycle_mean['predictions'], label='Prediction')
 
     # plt.plot(y_test.squeeze(), label='Actual')
     # plt.plot(predictions.detach().squeeze(), label='Prediction')
