@@ -467,7 +467,7 @@ def k_fold(model_type, hyperparameters, battery, verbose, strict):
 
 def k_fold_data(normalised_data, seq_length, model_type):
     if model_type == 'data_padded' or model_type == 'data':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0', 'Unnamed: 0.1'], axis=1)
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0'], axis=1)
     elif model_type == 'hybrid_padded':
         X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0.1', 'Unnamed: 0'], axis=1)
     y = normalised_data['TTD']
