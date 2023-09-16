@@ -36,7 +36,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'device is {device}')
 model.to(device)
 
-for i in range(4):
+for i in range(4):  # normally 4 but changed for testing
     battery_temp = battery.copy()
     test_battery = battery[i]
     print(f'test battery is {test_battery}')
