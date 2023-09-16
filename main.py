@@ -119,7 +119,7 @@ for i in range(4):
     x_val, y_val = k_fold_data(normalised_data_bat_1, seq_length=seq_length, model_type=model_type)
     x_test, y_test = k_fold_data(normalised_data_test, seq_length=seq_length, model_type=model_type)
 
-    # print(f'shapes of x_train_bat_1, x_train_bat_2, x_val, x_test are {x_train_bat_1.shape}, {x_train_bat_2.shape}, {x_val.shape}, {x_test.shape}')
+    print(f'shapes of x_train_bat_1, x_train_bat_2, x_val, x_test are {x_train_bat_1.shape}, {x_train_bat_2.shape}, {x_val.shape}, {x_test.shape}')
 
     trainloader_1 = SeqDataset(x_train_bat_1, y_data=y_train_bat_1, seq_len=seq_length, batch=batch_size)
     trainloader_2 = SeqDataset(x_train_bat_2, y_data=y_train_bat_2, seq_len=seq_length, batch=batch_size)

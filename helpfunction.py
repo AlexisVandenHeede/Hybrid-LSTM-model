@@ -78,7 +78,7 @@ def load_data_normalise_ind(name, model_type):
     elif model_type == 'hybrid':
         data.append(pd.read_csv("data/" + name + "_TTD - with SOC.csv"))
     elif model_type == 'data_padded':
-        data.append(pd.read_csv(f"data/padded_data_data[{name}].csv"))
+        data.append(pd.read_csv(f"data/padded_data_mod_volt[{name}].csv"))
     elif model_type == 'hybrid_padded':
         data.append(pd.read_csv(f"data/padded_data_hybrid_w_ecm[{name}].csv"))
     else:
@@ -90,6 +90,7 @@ def load_data_normalise_ind(name, model_type):
     time_std = time.std(axis=0)
     normalised_data = (data - data.mean(axis=0)) / data.std(axis=0)
     return normalised_data, time_mean, time_std
+
 
 def train_test_validation_split(X, y, test_size, cv_size):
     """
@@ -112,7 +113,7 @@ def data_split(normalised_data, test_size, cv_size, seq_length, model_type):
     """ Split data into X Y  train, test and validation sets"""
     y = normalised_data['TTD']
     if model_type == 'data_padded' or model_type == 'data':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0'], axis=1)
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0', 'Unnamed: 0.1'], axis=1)
     elif model_type == 'hybrid_padded':
         X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0.1', 'Unnamed: 0'], axis=1)
     X_train, y_train, X_test, y_test, X_cv, y_cv = train_test_validation_split(X, y, test_size, cv_size)
@@ -269,6 +270,7 @@ def train_batch_ind(model, train_dataloader1, train_dataloader2, val_dataloader,
                 break
 
     return model, train_loss_history, val_loss_history
+
 
 def train_batch(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser, verbose):
     """
