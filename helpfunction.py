@@ -78,7 +78,7 @@ def load_data_normalise_ind(name, model_type):
     elif model_type == 'hybrid':
         data.append(pd.read_csv("data/" + name + "_TTD - with SOC.csv"))
     elif model_type == 'data_padded':
-        data.append(pd.read_csv(f"data/padded_data_data_[{name}].csv"))
+        data.append(pd.read_csv(f"data/padded_data_data[{name}].csv"))
     elif model_type == 'hybrid_padded':
         data.append(pd.read_csv(f"data/padded_data_hybrid_w_ecm[{name}].csv"))
     else:
@@ -424,7 +424,7 @@ def k_fold(model_type, hyperparameters, battery, verbose, strict):
 
 def k_fold_data(normalised_data, seq_length, model_type):
     if model_type == 'data_padded' or model_type == 'data':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0'], axis=1)
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0', 'Unnamed: 0.1'], axis=1)
     elif model_type == 'hybrid_padded':
         X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0.1', 'Unnamed: 0'], axis=1)
     y = normalised_data['TTD']
@@ -516,6 +516,19 @@ def add_ecm_data(battery_num):
     df_padded['Vt_est'] = clean
     df_padded.to_csv(f'data/padded_data_hybrid_w_ecm[{battery_num}].csv')
     return print('ECM data added')
+
+
+def remove_voltage(battery_num):
+    df_padded = pd.read_csv(f'data/padded_data_data_[{battery_num}].csv')
+    voltage = df_padded['Voltage_measured']
+    ttd = df_padded['TTD']
+    for i in range(len(voltage)-1):
+        if voltage[i+1] > voltage[i] and ttd[i] < 400:
+            voltage[i+1] = voltage[i]
+    
+    df_padded['Voltage_measured'] = voltage
+    df_padded.to_csv(f'data/padded_data_mod_volt[{battery_num}].csv')
+    return print('voltage removed')
 
 
 def bit_to_hyperparameters(bit):
