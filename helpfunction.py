@@ -218,7 +218,7 @@ def train_batch_ind(model, train_dataloader1, train_dataloader2, val_dataloader,
     train model dataloaders, early stopper Class
     """
     epoch = []
-    early_stopper = EarlyStopper(patience=10, min_delta=0.00001)
+    early_stopper = EarlyStopper(patience=10, min_delta=0.001)
     with torch.no_grad():
         train_loss_history = []
         val_loss_history = []

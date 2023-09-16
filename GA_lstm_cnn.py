@@ -4,6 +4,7 @@ from helpfunction import k_fold, kfold_ind
 import numpy as np
 from bitstring import BitArray
 from torch import cuda
+import torch
 
 
 def basis_func(scaling_factor, hidden_layers):
@@ -79,8 +80,9 @@ def train_evaluate(ga_individual_solution):
 
 
 np.random.seed(121)
-population_size = 10
-num_generations = 3
+torch.manual_seed(0)
+population_size = 30
+num_generations = 10
 entire_bit_array_length = 11*8
 
 creator.create('FitnessMax', base.Fitness, weights=[-1.0])

@@ -1,7 +1,6 @@
 from helpfunction import load_data_normalise_ind, SeqDataset, plot_loss, plot_predictions, bit_to_hyperparameters, eval_model, train_batch_ind, k_fold_data
 from ParametricLSTMCNN import ParametricLSTMCNN
 import torch
-import random
 
 # everything that was here before - idk if it's needed
 # verbose = True
@@ -89,7 +88,7 @@ elif model_type == 'data_padded':
 model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, inputlstm)
 lf = torch.nn.MSELoss()
 opimiser = torch.optim.Adam(model.parameters(), lr=lr)
-
+torch.manual_seed(0)
 # device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'device is {device}')
