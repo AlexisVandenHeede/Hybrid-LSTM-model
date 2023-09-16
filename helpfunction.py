@@ -566,7 +566,7 @@ def remove_voltage(battery_num):
     voltage = df_padded['Voltage_measured']
     ttd = df_padded['TTD']
     for i in range(len(voltage)-1):
-        if voltage[i+1] > voltage[i] and ttd[i] < 400:
+        if voltage[i+1] > voltage[i] and ttd[i] < 700:
             voltage[i+1] = voltage[i]
     
     df_padded['Voltage_measured'] = voltage
