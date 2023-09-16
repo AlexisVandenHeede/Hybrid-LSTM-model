@@ -1,6 +1,6 @@
 from deap import base, creator, tools, algorithms
 from scipy.stats import poisson
-from helpfunction import k_fold, kfold_ind
+from helpfunction import kfold_ind
 import numpy as np
 from bitstring import BitArray
 from torch import cuda

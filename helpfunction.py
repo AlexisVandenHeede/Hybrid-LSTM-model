@@ -7,20 +7,29 @@ from ParametricLSTMCNN import ParametricLSTMCNN
 from bitstring import BitArray
 
 
-def load_data_normalise_ind(name, model_type):
+def load_data_normalise_ind(battery, model_type):
     """
     Load the data and normalise it
     return: normalised data, mean time, std time
     """
     data = []
+    size_of_bat = []
     if model_type == 'data':
-        data.append(pd.read_csv("data/" + name + "_TTD1.csv"))
+        for i in battery:
+            data.append(pd.read_csv("data/" + i + "_TTD1.csv"))
+            size_of_bat.append(len(pd.read_csv("data/" + i + "_TTD1.csv")))
     elif model_type == 'hybrid':
-        data.append(pd.read_csv("data/" + name + "_TTD - with SOC.csv"))
+        for i in battery:
+            data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
+            size_of_bat.append(len(pd.read_csv("data/" + i + "_TTD - with SOC.csv")))
     elif model_type == 'data_padded':
-        data.append(pd.read_csv(f"data/padded_data_mod_volt[{name}].csv"))
+        for i in battery:
+            data.append(pd.read_csv(f"data/padded_data_mod_volt[{i}].csv"))
+            size_of_bat.append(len(pd.read_csv(f"data/padded_data_mod_volt[{i}].csv")))
     elif model_type == 'hybrid_padded':
-        data.append(pd.read_csv(f"data/padded_data_hybrid_w_ecm[{name}].csv"))
+        for i in battery:
+            data.append(pd.read_csv(f"data/padded_data_hybrid_w_ecm[{i}].csv"))
+            size_of_bat.append(len(pd.read_csv(f"data/padded_data_hybrid_w_ecm[{i}].csv")))
     else:
         print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
         raise NameError
@@ -29,7 +38,7 @@ def load_data_normalise_ind(name, model_type):
     time_mean = time.mean(axis=0)
     time_std = time.std(axis=0)
     normalised_data = (data - data.mean(axis=0)) / data.std(axis=0)
-    return normalised_data, time_mean, time_std
+    return normalised_data, time_mean, time_std, size_of_bat
 
 
 def train_test_validation_split(X, y, test_size, cv_size):
@@ -98,7 +107,7 @@ def basis_func(scaling_factor, hidden_layers):
     return basis_function
 
 
-def train_batch_ind(model, train_dataloader1, train_dataloader2, val_dataloader, n_epoch, lf, optimiser, verbose):
+def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser, verbose):
     """
     train model dataloaders, early stopper Class
     """
@@ -111,28 +120,16 @@ def train_batch_ind(model, train_dataloader1, train_dataloader2, val_dataloader,
     for i in range(n_epoch):
         loss_v = 0
         loss = 0
-        if n_epoch % 2 == 0:
-            for l, (x, y) in enumerate(train_dataloader1):
-                model.train()
-                target_train = model(x)
-                loss_train = lf(target_train, y)
-                loss += loss_train.item()
-                epoch.append(i+1)
-                optimiser.zero_grad()
-                loss_train.backward()
-                optimiser.step()
-            train_loss = loss/len(train_dataloader1)
-        else:
-            for l, (x, y) in enumerate(train_dataloader2):
-                model.train()
-                target_train = model(x)
-                loss_train = lf(target_train, y)
-                loss += loss_train.item()
-                epoch.append(i+1)
-                optimiser.zero_grad()
-                loss_train.backward()
-                optimiser.step()
-            train_loss = loss/len(train_dataloader2)
+        for l, (x, y) in enumerate(train_dataloader):
+            model.train()
+            target_train = model(x)
+            loss_train = lf(target_train, y)
+            loss += loss_train.item()
+            epoch.append(i+1)
+            optimiser.zero_grad()
+            loss_train.backward()
+            optimiser.step()
+        train_loss = loss/len(train_dataloader)
 
         for k, (x, y) in enumerate(val_dataloader):
             model.eval()
@@ -259,17 +256,41 @@ def eval_model(model, X_test, y_test, criterion):
     return rmse, raw_test
 
 
-def k_fold_data(normalised_data, seq_length, model_type):
+def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
     if model_type == 'data_padded' or model_type == 'data':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0'], axis=1)
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0', 'Unnamed: 0.1'], axis=1)
     elif model_type == 'hybrid_padded':
         X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0.1', 'Unnamed: 0'], axis=1)
     y = normalised_data['TTD']
-    x_tr = X.values[:]
-    y_tr = y.values[seq_length:]
-    x_tr = np.array([x_tr[i-seq_length:i] for i in range(seq_length, len(x_tr))])
-    x_tr = torch.tensor(np.array(x_tr))
-    y_tr = torch.tensor(y_tr).unsqueeze(1).unsqueeze(2)
+    # print(f'shape of x and y is {X.shape}, {y.shape}')
+    x_tr = []
+    y_tr = []
+    for i in range(len(size_of_bat)):
+        if len(size_of_bat) == 1:
+            x_tr = []
+            y_tr = []
+            for i in range(seq_length, len(X)):
+                x_tr.append(X.values[i-seq_length:i])
+                y_tr.append(y.values[i])
+            x_tr = np.array(x_tr)
+            y_tr = np.array(y_tr)
+        if len(size_of_bat) == 2:
+            x_tr_1 = []
+            y_tr_1 = []
+            x_tr_2 = []
+            y_tr_2 = []
+            for i in range(seq_length, size_of_bat[0]):
+                x_tr_1.append(X.values[i-seq_length:i])
+                y_tr_1.append(y.values[i])
+            for i in range(seq_length, size_of_bat[1]):
+                x_tr_2.append(X.values[i-seq_length:i])
+                y_tr_2.append(y.values[i])
+            x_tr = np.concatenate((np.array(x_tr_1), np.array(x_tr_2)), axis=0)
+            y_tr = np.concatenate((np.array(y_tr_1), np.array(y_tr_2)), axis=0)
+    
+    x_tr = torch.tensor((x_tr))
+    y_tr = torch.tensor((y_tr)).unsqueeze(1).unsqueeze(2)
+    # print(f'shape of x_tr is {x_tr.shape}, shape of y_tr is {y_tr.shape}')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     x_tr = x_tr.to(device).float()
     y_tr = y_tr.to(device).float()
@@ -290,27 +311,23 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
             validation_battery = [battery[i+1]]
         battery_temp.remove(validation_battery[0])
         print(f'validation battery is {validation_battery}')
-        train_battery_1 = [battery_temp[0]]
-        train_battery_2 = [battery_temp[1]]
-        print(f'train batteries are {train_battery_1} and {train_battery_2}')
-        normalised_data_train_1, _, _ = load_data_normalise_ind(train_battery_1, model_type)
-        normalised_data_train_2, _, _ = load_data_normalise_ind(train_battery_2, model_type)
-        normalised_data_test, time_mean_test, time_std_test = load_data_normalise_ind(test_battery, model_type)
-        normalised_data_validation, _, _ = load_data_normalise_ind(validation_battery, model_type)
+        train_battery = battery_temp
+        print(f'train batteries are {train_battery}')
+        normalised_data_train, _, _, size_of_bat = load_data_normalise_ind(train_battery, model_type)
+        normalised_data_test, time_mean_test, time_std_test, size_of_bat_test = load_data_normalise_ind(test_battery, model_type)
+        normalised_data_validation, _, _, size_of_bat_val = load_data_normalise_ind(validation_battery, model_type)
         seq_length = hyperparameters[0]
-        X_train_1, y_train_1 = k_fold_data(normalised_data_train_1, seq_length, model_type)
-        X_train_2, y_train_2 = k_fold_data(normalised_data_train_2, seq_length, model_type)
-        X_test, y_test = k_fold_data(normalised_data_test, seq_length, model_type)
-        X_validation, y_validation = k_fold_data(normalised_data_validation, seq_length, model_type)
-        model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], hyperparameters[0], X_train_1.shape[2])
+        X_train, y_train = k_fold_data(normalised_data_train, seq_length, model_type, size_of_bat)
+        X_test, y_test = k_fold_data(normalised_data_test, seq_length, model_type, size_of_bat_test)
+        X_validation, y_validation = k_fold_data(normalised_data_validation, seq_length, model_type, size_of_bat_val)
+        model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], hyperparameters[0], X_train.shape[2])
         lf = torch.nn.MSELoss()
         opimiser = torch.optim.Adam(model.parameters(), lr=hyperparameters[9])
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         model.to(device)
-        train_dataset_1 = SeqDataset(x_data=X_train_1, y_data=y_train_1, seq_len=seq_length, batch=hyperparameters[10])
-        train_dataset_2 = SeqDataset(x_data=X_train_2, y_data=y_train_2, seq_len=seq_length, batch=hyperparameters[10])
+        train_dataset = SeqDataset(x_data=X_train, y_data=y_train, seq_len=seq_length, batch=hyperparameters[10])
         validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, seq_len=seq_length, batch=hyperparameters[10])
-        model, train_loss_history, val_loss_history = train_batch_ind(model, train_dataset_1, train_dataset_2, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
+        model, train_loss_history, val_loss_history = train_batch_ind(model, train_dataset, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
         rmse_test, raw_test = eval_model(model, X_test, y_test, lf)
         print(f'rmse_test = {rmse_test}')
         if plot:

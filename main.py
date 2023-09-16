@@ -96,37 +96,33 @@ model.to(device)
 
 for i in range(4):
     battery_temp = battery.copy()
-    test_battery = battery[i]
+    test_battery = [battery[i]]
     print(f'test battery is {test_battery}')
-    battery_temp.remove(test_battery)
+    battery_temp.remove(test_battery[0])
     if i == 3:
-        val_battery = battery[0]
+        val_battery = [battery[0]]
     else:
-        val_battery = battery[i+1]
-    battery_temp.remove(val_battery)
+        val_battery = [battery[i+1]]
+    battery_temp.remove(val_battery[0])
     print(f'validation battery is {val_battery}')
-    train_battery_1 = battery_temp[0]
-    train_battery_2 = battery_temp[1]
-    print(f'train batteries are {train_battery_1} and {train_battery_2}')
+    train_battery = battery_temp
+    print(f'train batteries are {train_battery} and {train_battery[1]}')
     
-    normalised_data_bat_1, _, _ = load_data_normalise_ind(train_battery_1, model_type)
-    normalised_data_bat_2, _, _ = load_data_normalise_ind(train_battery_2, model_type)
-    normalised_data_val, _, _ = load_data_normalise_ind(val_battery, model_type)
-    normalised_data_test, mean_ttd, std_ttd = load_data_normalise_ind(test_battery, model_type)
+    normalised_data_bat, _, _, size_of_bat_train = load_data_normalise_ind(train_battery, model_type)
+    normalised_data_val, _, _, size_of_bat_val = load_data_normalise_ind(val_battery, model_type)
+    normalised_data_test, mean_ttd, std_ttd, size_of_bat_test = load_data_normalise_ind(test_battery, model_type)
 
-    x_train_bat_1, y_train_bat_1 = k_fold_data(normalised_data_bat_1, seq_length=seq_length, model_type=model_type)
-    x_train_bat_2, y_train_bat_2 = k_fold_data(normalised_data_bat_2, seq_length=seq_length, model_type=model_type)
-    x_val, y_val = k_fold_data(normalised_data_bat_1, seq_length=seq_length, model_type=model_type)
-    x_test, y_test = k_fold_data(normalised_data_test, seq_length=seq_length, model_type=model_type)
+    x_train_bat, y_train_bat = k_fold_data(normalised_data_bat, seq_length=seq_length, model_type=model_type, size_of_bat=size_of_bat_train)
+    x_val, y_val = k_fold_data(normalised_data_val, seq_length=seq_length, model_type=model_type, size_of_bat=size_of_bat_val)
+    x_test, y_test = k_fold_data(normalised_data_test, seq_length=seq_length, model_type=model_type, size_of_bat=size_of_bat_test)
 
-    print(f'shapes of x_train_bat_1, x_train_bat_2, x_val, x_test are {x_train_bat_1.shape}, {x_train_bat_2.shape}, {x_val.shape}, {x_test.shape}')
-
-    trainloader_1 = SeqDataset(x_train_bat_1, y_data=y_train_bat_1, seq_len=seq_length, batch=batch_size)
-    trainloader_2 = SeqDataset(x_train_bat_2, y_data=y_train_bat_2, seq_len=seq_length, batch=batch_size)
+    # print(f'shapes of x_train_bat_1, x_val, x_test are {x_train_bat.shape}, {x_val.shape}, {x_test.shape}')
+    # print(f'shapes of y_train_bat_1, y_val, y_test are {y_train_bat.shape}, {y_val.shape}, {y_test.shape}')
+    trainloader = SeqDataset(x_train_bat, y_data=y_train_bat, seq_len=seq_length, batch=batch_size)
     val_loader = SeqDataset(x_val, y_data=y_val, seq_len=seq_length, batch=batch_size)
 
     # Training model
-    model, train_loss_history, val_loss_history = train_batch_ind(model, trainloader_1, trainloader_2, val_loader, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
+    model, train_loss_history, val_loss_history = train_batch_ind(model, trainloader, val_loader, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
 
     # Evaluation
     eval_model(model, x_test, y_test, criterion=lf)
