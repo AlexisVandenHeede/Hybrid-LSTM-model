@@ -8,6 +8,7 @@ from bitstring import BitArray
 
 
 def load_data_normalise_ind(battery, model_type):
+    debug = False
     """
     Load the data and normalise it
     return: normalised data, mean time, std time
@@ -38,6 +39,18 @@ def load_data_normalise_ind(battery, model_type):
     time_mean = time.mean(axis=0)
     time_std = time.std(axis=0)
     normalised_data = (data - data.mean(axis=0)) / data.std(axis=0)
+    if debug:
+        # plot each normalised data
+        thing = input('Press enter to see scatter plots of normalised data')
+        if thing == '':
+            for col in normalised_data.columns:
+                plt.figure(figsize=(8, 6))
+                plt.scatter(range(len(normalised_data)), normalised_data[col], s=5)
+                plt.title(f'Scatter Plot for {col}')
+                plt.xlabel('Data Point Index')
+                plt.ylabel('Normalized Value')
+                plt.grid(True)
+                plt.show()
     return normalised_data, time_mean, time_std, size_of_bat
 
 
@@ -173,6 +186,69 @@ def plot_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
     plt.ylabel('TTD')
     plt.legend()
     plt.title(f'Predictions vs Actual for {model_type} model')
+    plt.show()
+
+
+def plot_average_predictionsv2(model, X_test, y_test, ttd_mean, ttd_std, model_type):
+    debug = False
+    df = pd.DataFrame()
+    predictions = model(X_test)
+    df['predictions'] = np.reshape(predictions.cpu().detach().numpy(), -1) * ttd_std + ttd_mean
+    df.insert(1, 'y_test', np.reshape(y_test.cpu().detach().numpy(), -1) * ttd_std + ttd_mean)
+    if debug: 
+        print(df.describe())
+    threshold = 2000
+    df['cycle_starts'] = df['y_test'].diff().abs() > threshold
+    df['cycle_index'] = 0
+    cycle_count = 0
+    cycle_lengths = []
+
+    for index, row in df.iterrows():
+        if row['cycle_starts']:
+            if cycle_count > 0:
+                cycle_lengths.append(cycle_count)
+            cycle_count = 0
+        df.at[index, 'cycle_index'] = cycle_count
+        cycle_count += 1
+    if debug:
+        print(df.head())
+
+    # Calculate scaled_cycle_index
+    df['scaled_cycle_index'] = 0
+    current_cycle_start = 0
+    for length in cycle_lengths:
+        scaled_indices = np.arange(length) / length
+        df.loc[current_cycle_start:current_cycle_start + length - 1, 'scaled_cycle_index'] = scaled_indices
+        current_cycle_start += length
+
+    if debug:
+        print(df.head())
+        # plot scaled_cycle_index vs index
+        plt.figure(figsize=(10, 6))
+        plt.scatter(df.index, df['scaled_cycle_index'], label='scaled_cycle_index', marker='o')
+        plt.xlabel('Index')
+        plt.ylabel('Scaled Cycle Index')
+        plt.legend()
+
+        plt.show()
+
+    #   round scaled_cycle_index to 2dp
+    df['scaled_cycle_index'] = df['scaled_cycle_index'].round(2)
+
+    # Calculate average values per scaled_cycle_index
+    avg_scaled_values = df.groupby('scaled_cycle_index').agg({'predictions': 'mean', 'y_test': 'mean'}).reset_index()
+    # remove first point
+    avg_scaled_values = avg_scaled_values.iloc[1:]
+    # Create a scatter plot
+    plt.figure(figsize=(10, 6))
+    plt.scatter(avg_scaled_values['scaled_cycle_index'], avg_scaled_values['predictions'], label='Average Predictions', marker='o')
+    plt.scatter(avg_scaled_values['scaled_cycle_index'], avg_scaled_values['y_test'], label='Average y_test', marker='x')
+    plt.xlabel('Scaled Cycle Index')
+    plt.ylabel('Average Value')
+    plt.legend()
+    plt.title('Average Predictions and Average y_test per Scaled Cycle Index')
+    plt.grid(True)
+
     plt.show()
 
 
