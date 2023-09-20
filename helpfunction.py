@@ -421,47 +421,6 @@ def k_fold_datav2(normalised_data, seq_length, model_type, size_of_bat):
     return x_tr, y_tr
 
 
-def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
-    if model_type == 'data_padded' or model_type == 'data':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time'], axis=1)
-    elif model_type == 'hybrid_padded':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured',], axis=1)
-    y = normalised_data['TTD']
-    # print(f'shape of x and y is {X.shape}, {y.shape}')
-    x_tr = []
-    y_tr = []
-    for i in range(len(size_of_bat)):
-        if len(size_of_bat) == 1:
-            x_tr = []
-            y_tr = []
-            for i in range(seq_length, len(X)):
-                x_tr.append(X.values[i-seq_length:i])
-                y_tr.append(y.values[i])
-            x_tr = np.array(x_tr)
-            y_tr = np.array(y_tr)
-        if len(size_of_bat) == 2:
-            x_tr_1 = []
-            y_tr_1 = []
-            x_tr_2 = []
-            y_tr_2 = []
-            for i in range(seq_length, size_of_bat[0]):
-                x_tr_1.append(X.values[i-seq_length:i])
-                y_tr_1.append(y.values[i])
-            for i in range(seq_length, size_of_bat[1]):
-                x_tr_2.append(X.values[i-seq_length:i])
-                y_tr_2.append(y.values[i])
-            x_tr = np.concatenate((np.array(x_tr_1), np.array(x_tr_2)), axis=0)
-            y_tr = np.concatenate((np.array(y_tr_1), np.array(y_tr_2)), axis=0)
-    
-    x_tr = torch.tensor((x_tr))
-    y_tr = torch.tensor((y_tr)).unsqueeze(1).unsqueeze(2)
-    # print(f'shape of x_tr is {x_tr.shape}, shape of y_tr is {y_tr.shape}')
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    x_tr = x_tr.to(device).float()
-    y_tr = y_tr.to(device).float()
-    return x_tr, y_tr
-
-
 def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
     print(f'model type = {model_type}')
     k_fold_rmse = []
