@@ -371,16 +371,12 @@ class SeqDataset:
 
 
 def eval_model(model, X_test, y_test, criterion):
-    """
-    WIP
-    """ 
     model.eval()
     with torch.no_grad():
         y_pred = model(X_test)
-        # clear cache
-        torch.cuda.empty_cache()
-        rmse = np.sqrt(criterion(y_test, y_pred).item())
-        raw_test = (np.sum((y_test.cpu().detach().numpy() - y_pred.cpu().detach().numpy())**2))/len(y_test)
+        rmse = torch.sqrt(criterion(y_test, y_pred)).item()
+        raw_test = ((y_test - y_pred) ** 2).mean().item()
+
     print(f'rmse_test = {rmse}')
     return rmse, raw_test
 
@@ -413,7 +409,7 @@ def k_fold_datav2(normalised_data, seq_length, model_type, size_of_bat):
         y_tr = np.concatenate((y_tr_1, y_tr_2), axis=0)
 
     x_tr = torch.tensor(x_tr)
-    y_tr = torch.tensor(y_tr).unsqueeze(1).unsqueeze(2)
+    y_tr = torch.tensor(y_tr)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     x_tr = x_tr.to(device).float()
@@ -464,6 +460,7 @@ def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
 
 
 def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
+    print(f'model type = {model_type}')
     k_fold_rmse = []
     k_fold_raw_test = []
     for i in range(4):
