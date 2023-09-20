@@ -23,6 +23,7 @@ def load_data_normalise_indv2(battery, model_type):
         data_file = f"data/{i}_TTD1.csv" if model_type == 'data' else f"data/{i}_TTD - with SOC.csv" if model_type == 'hybrid' else f"data/padded_data_mod_volt[{i}].csv" if model_type == 'data_padded' else f"data/padded_data_hybrid_w_ecm[{i}].csv"
         battery_data = pd.read_csv(data_file)
         normalized_battery_data = (battery_data - battery_data.mean(axis=0)) / battery_data.std(axis=0)
+        normalized_battery_data = normalized_battery_data.astype('float16')  # Convert to float16 to save memory
         data.append(normalized_battery_data)
         size_of_bat.append(len(battery_data))
 
@@ -376,10 +377,49 @@ def eval_model(model, X_test, y_test, criterion):
     model.eval()
     with torch.no_grad():
         y_pred = model(X_test)
+        # clear cache
+        torch.cuda.empty_cache()
         rmse = np.sqrt(criterion(y_test, y_pred).item())
         raw_test = (np.sum((y_test.cpu().detach().numpy() - y_pred.cpu().detach().numpy())**2))/len(y_test)
     print(f'rmse_test = {rmse}')
     return rmse, raw_test
+
+
+def k_fold_datav2(normalised_data, seq_length, model_type, size_of_bat):
+    if model_type == 'data_padded' or model_type == 'data':
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time'], axis=1)
+    elif model_type == 'hybrid_padded':
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured'], axis=1)
+    y = normalised_data['TTD']
+
+    if len(size_of_bat) == 1:
+        x_tr = np.empty((len(X) - seq_length, seq_length, X.shape[1]))
+        y_tr = np.empty((len(X) - seq_length, 1, 1))
+        for i in range(seq_length, len(X)):
+            x_tr[i - seq_length] = X.values[i - seq_length:i]
+            y_tr[i - seq_length] = y.values[i]
+    elif len(size_of_bat) == 2:
+        x_tr_1 = np.empty((size_of_bat[0] - seq_length, seq_length, X.shape[1]))
+        y_tr_1 = np.empty((size_of_bat[0] - seq_length, 1, 1))
+        x_tr_2 = np.empty((size_of_bat[1] - seq_length, seq_length, X.shape[1]))
+        y_tr_2 = np.empty((size_of_bat[1] - seq_length, 1, 1))
+        for i in range(seq_length, size_of_bat[0]):
+            x_tr_1[i - seq_length] = X.values[i - seq_length:i]
+            y_tr_1[i - seq_length] = y.values[i]
+        for i in range(seq_length, size_of_bat[1]):
+            x_tr_2[i - seq_length] = X.values[i - seq_length:i]
+            y_tr_2[i - seq_length] = y.values[i]
+        x_tr = np.concatenate((x_tr_1, x_tr_2), axis=0)
+        y_tr = np.concatenate((y_tr_1, y_tr_2), axis=0)
+
+    x_tr = torch.tensor(x_tr)
+    y_tr = torch.tensor(y_tr).unsqueeze(1).unsqueeze(2)
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    x_tr = x_tr.to(device).float()
+    y_tr = y_tr.to(device).float()
+
+    return x_tr, y_tr
 
 
 def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
@@ -443,9 +483,9 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         normalised_data_test, time_mean_test, time_std_test, size_of_bat_test = load_data_normalise_indv2(test_battery, model_type)
         normalised_data_validation, _, _, size_of_bat_val = load_data_normalise_indv2(validation_battery, model_type)
         seq_length = hyperparameters[0]
-        X_train, y_train = k_fold_data(normalised_data_train, seq_length, model_type, size_of_bat)
-        X_test, y_test = k_fold_data(normalised_data_test, seq_length, model_type, size_of_bat_test)
-        X_validation, y_validation = k_fold_data(normalised_data_validation, seq_length, model_type, size_of_bat_val)
+        X_train, y_train = k_fold_datav2(normalised_data_train, seq_length, model_type, size_of_bat)
+        X_test, y_test = k_fold_datav2(normalised_data_test, seq_length, model_type, size_of_bat_test)
+        X_validation, y_validation = k_fold_datav2(normalised_data_validation, seq_length, model_type, size_of_bat_val)
         model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], hyperparameters[0], X_train.shape[2])
         lf = torch.nn.MSELoss()
         opimiser = torch.optim.Adam(model.parameters(), lr=hyperparameters[9])

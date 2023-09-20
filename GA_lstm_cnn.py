@@ -75,7 +75,7 @@ def train_evaluate(ga_individual_solution):
 
     hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
     print(f'hyperparameters: {hyperparameters}')
-    loss = kfold_ind(model_type='data_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=False, strict=True)
+    loss = kfold_ind(model_type='hybrid_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=False, strict=True)
     return [loss]
 
 
