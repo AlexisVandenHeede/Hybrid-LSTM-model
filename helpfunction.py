@@ -8,7 +8,7 @@ from bitstring import BitArray
 
 
 def load_data_normalise_indv2(battery, model_type):
-    debug = True
+    debug = False
     """
     Load the data and normalize it.
     Return: normalized data, mean time, std time
@@ -384,7 +384,7 @@ def eval_model(model, X_test, y_test, criterion):
 
 def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
     if model_type == 'data_padded' or model_type == 'data':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance'], axis=1)
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time'], axis=1)
     elif model_type == 'hybrid_padded':
         X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured',], axis=1)
     y = normalised_data['TTD']
