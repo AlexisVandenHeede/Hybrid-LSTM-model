@@ -1,7 +1,7 @@
-from helpfunction import load_data_normalise_ind, SeqDataset, plot_loss, plot_predictions, bit_to_hyperparameters, eval_model, train_batch_ind, k_fold_data
+from helpfunction import load_data_normalise_ind, SeqDataset, plot_loss, plot_predictions, bit_to_hyperparameters, eval_model, train_batch_ind, k_fold_data, kfold_ind, seq_split
 from ParametricLSTMCNN import ParametricLSTMCNN
 import torch
-
+import numpy as np
 # everything that was here before - idk if it's needed
 # verbose = True
 # battery = ['B0005', 'B0006', 'B0007', 'B0018']
@@ -68,31 +68,19 @@ import torch
 ### data split using individual batteries and trained to flip between batteries
 verbose = True
 battery = ['B0005', 'B0006', 'B0007', 'B0018']
-model_type = 'data_padded'
+model_type = 'hybrid_padded'
 n_epoch = 100
 test_size = 0.1
 cv_size = 0.1
 # some data-padded hyperparameters from ga
-bit = [0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 1, 0, 0, 2, 0, 0, 0, 1, 0, 2, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 2, 2, 0, 2, 0, 1, 2, 0, 1, 2, 0, 0, 1, 0, 1, 0, 2, 1, 0, 0, 0, 0, 1, 0, 3, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0]
+# bit = [0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 1, 0, 0, 2, 0, 0, 0, 1, 0, 2, 0, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 2, 2, 0, 2, 0, 1, 2, 0, 1, 2, 0, 0, 1, 0, 1, 0, 2, 1, 0, 0, 0, 0, 1, 0, 3, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0]
 # [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 2, 1, 2, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 1, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 2, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 2, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1]
-seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch, hyperparameters = bit_to_hyperparameters(bit)
-
+# seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch, hyperparameters = bit_to_hyperparameters(bit)
+hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch] = [2, 1, [1], [1], [1], [1], 4, 2, [1,1], 0.05534, 608, 100]
+# [3, 2, [1, 2], [1, 1], [1, 3], [1, 2], 9, 2, [5, 1, 1], 0.05847, 552, 100]
 if verbose:
     print(f'model type is {model_type}')
-if model_type == 'hybrid_padded':
-    inputlstm = 7
-elif model_type == 'data_padded':
-    inputlstm = 6
-
-# model initialisation
-model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, inputlstm)
-lf = torch.nn.MSELoss()
-opimiser = torch.optim.Adam(model.parameters(), lr=lr)
-torch.manual_seed(0)
-# device
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print(f'device is {device}')
-model.to(device)
+# loss = kfold_ind(model_type='hybrid_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=True, strict=True)
 
 for i in range(4):
     battery_temp = battery.copy()
@@ -106,13 +94,13 @@ for i in range(4):
     battery_temp.remove(val_battery[0])
     print(f'validation battery is {val_battery}')
     train_battery = battery_temp
-    print(f'train batteries are {train_battery} and {train_battery[1]}')
+    print(f'train batteries are {train_battery}')
     
-    normalised_data_bat, _, _, size_of_bat_train = load_data_normalise_ind(train_battery, model_type)
+    normalised_data_bat, mean_bat, std_bat, size_of_bat_train = load_data_normalise_ind(train_battery, model_type)
     normalised_data_val, _, _, size_of_bat_val = load_data_normalise_ind(val_battery, model_type)
     normalised_data_test, mean_ttd, std_ttd, size_of_bat_test = load_data_normalise_ind(test_battery, model_type)
 
-    x_train_bat, y_train_bat = k_fold_data(normalised_data_bat, seq_length=seq_length, model_type=model_type, size_of_bat=size_of_bat_train)
+    x_train_bat, y_train_bat = seq_split(normalised_data_bat, mean_bat, std_bat, seq_steps=20, model_type=model_type, size_of_bat=size_of_bat_train)
     x_val, y_val = k_fold_data(normalised_data_val, seq_length=seq_length, model_type=model_type, size_of_bat=size_of_bat_val)
     x_test, y_test = k_fold_data(normalised_data_test, seq_length=seq_length, model_type=model_type, size_of_bat=size_of_bat_test)
 
@@ -120,6 +108,14 @@ for i in range(4):
     val_loader = SeqDataset(x_val, y_data=y_val, seq_len=seq_length, batch=batch_size)
 
     # Training model
+    model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, x_train_bat.shape[2])
+    lf = torch.nn.MSELoss()
+    opimiser = torch.optim.Adam(model.parameters(), lr=lr)
+    torch.manual_seed(0)
+    # device
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f'device is {device}')
+    model.to(device)
     model, train_loss_history, val_loss_history = train_batch_ind(model, trainloader, val_loader, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
 
     # Evaluation

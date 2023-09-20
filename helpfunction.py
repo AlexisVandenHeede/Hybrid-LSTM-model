@@ -28,8 +28,8 @@ def load_data_normalise_ind(battery, model_type):
             size_of_bat.append(len(pd.read_csv(f"data/padded_data_mod_volt[{i}].csv")))
     elif model_type == 'hybrid_padded':
         for i in battery:
-            data.append(pd.read_csv(f"data/padded_data_hybrid_w_ecm[{i}].csv"))
-            size_of_bat.append(len(pd.read_csv(f"data/padded_data_hybrid_w_ecm[{i}].csv")))
+            data.append(pd.read_csv(f"data/padded_hybrid_mod_volt[{i}].csv"))
+            size_of_bat.append(len(pd.read_csv(f"data/padded_hybrid_mod_volt[{i}].csv")))
     else:
         print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
         raise NameError
@@ -260,37 +260,73 @@ def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
     if model_type == 'data_padded' or model_type == 'data':
         X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0', 'Unnamed: 0.1'], axis=1)
     elif model_type == 'hybrid_padded':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0.1', 'Unnamed: 0'], axis=1)
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0.1', 'Unnamed: 0', 'Unnamed: 0.2'], axis=1)
     y = normalised_data['TTD']
     # print(f'shape of x and y is {X.shape}, {y.shape}')
     x_tr = []
     y_tr = []
-    for i in range(len(size_of_bat)):
-        if len(size_of_bat) == 1:
-            x_tr = []
-            y_tr = []
-            for i in range(seq_length, len(X)):
-                x_tr.append(X.values[i-seq_length:i])
-                y_tr.append(y.values[i])
-            x_tr = np.array(x_tr)
-            y_tr = np.array(y_tr)
-        if len(size_of_bat) == 2:
-            x_tr_1 = []
-            y_tr_1 = []
-            x_tr_2 = []
-            y_tr_2 = []
-            for i in range(seq_length, size_of_bat[0]):
-                x_tr_1.append(X.values[i-seq_length:i])
-                y_tr_1.append(y.values[i])
-            for i in range(seq_length, size_of_bat[1]):
-                x_tr_2.append(X.values[i-seq_length:i])
-                y_tr_2.append(y.values[i])
-            x_tr = np.concatenate((np.array(x_tr_1), np.array(x_tr_2)), axis=0)
-            y_tr = np.concatenate((np.array(y_tr_1), np.array(y_tr_2)), axis=0)
+    if len(size_of_bat) == 1:
+        x_tr = []
+        y_tr = []
+        for i in range(seq_length, len(X)):
+            x_tr.append(X.values[i-seq_length:i])
+            y_tr.append(y.values[i])
+        x_tr = np.array(x_tr)
+        y_tr = np.array(y_tr)
+    if len(size_of_bat) == 2:
+        x_tr_1 = []
+        y_tr_1 = []
+        x_tr_2 = []
+        y_tr_2 = []
+        for i in range(seq_length, size_of_bat[0]):
+            x_tr_1.append(X.values[i-seq_length:i])
+            y_tr_1.append(y.values[i])
+        for i in range(seq_length, size_of_bat[1]):
+            x_tr_2.append(X.values[i-seq_length:i])
+            y_tr_2.append(y.values[i])
+        x_tr = np.concatenate((np.array(x_tr_1), np.array(x_tr_2)), axis=0)
+        y_tr = np.concatenate((np.array(y_tr_1), np.array(y_tr_2)), axis=0)
     
     x_tr = torch.tensor((x_tr))
     y_tr = torch.tensor((y_tr)).unsqueeze(1).unsqueeze(2)
     # print(f'shape of x_tr is {x_tr.shape}, shape of y_tr is {y_tr.shape}')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    x_tr = x_tr.to(device).float()
+    y_tr = y_tr.to(device).float()
+    return x_tr, y_tr
+
+
+def seq_split(normalised_data, mean, std, seq_steps, model_type, size_of_bat):
+    if model_type == 'data_padded' or model_type == 'data':
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0', 'Unnamed: 0.1'], axis=1)
+    elif model_type == 'hybrid_padded':
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0.1', 'Unnamed: 0', 'Unnamed: 0.2'], axis=1)
+    y = normalised_data['TTD'] 
+    print(X)
+    df = pd.DataFrame()
+    if len(size_of_bat) == 1:
+        indx_jumps = y.where(y == 0, 1)
+        print(indx_jumps)
+        # print(df.describe()
+        threshold = 2000
+        cycle_starts = df['bat_1'].diff().abs() > threshold
+        for j in range(len(cycle_starts)):
+            seq_length = cycle_starts[j]/seq_steps
+            seq_length = int(seq_length)
+            x_tr = []
+            y_tr = []
+            for k in range(seq_length, cycle_starts[j+1]):
+                x_tr.append(X.values[k-seq_length:k])
+                y_tr.append(y.values[k])
+            x_tr = np.array(x_tr)
+            y_tr = np.array(y_tr)
+    if len(size_of_bat) == 2:
+        print('idc')
+
+    x_tr = torch.tensor((x_tr))
+    y_tr = torch.tensor((y_tr)).unsqueeze(1).unsqueeze(2)
+    print(f'shape of x_tr is {x_tr.shape}, shape of y_tr is {y_tr.shape}')
+    print(f'seq_length is {seq_length} and seq_steps is {seq_steps}')
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     x_tr = x_tr.to(device).float()
     y_tr = y_tr.to(device).float()
@@ -303,16 +339,16 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
     for i in range(4):
         battery_temp = battery.copy()
         test_battery = [battery[i]]
-        print(f'test battery is {test_battery}')
+        # print(f'test battery is {test_battery}')
         battery_temp.remove(test_battery[0])
         if i == 3:
             validation_battery = [battery[0]]
         else:
             validation_battery = [battery[i+1]]
         battery_temp.remove(validation_battery[0])
-        print(f'validation battery is {validation_battery}')
+        # print(f'validation battery is {validation_battery}')
         train_battery = battery_temp
-        print(f'train batteries are {train_battery}')
+        # print(f'train batteries are {train_battery}')
         normalised_data_train, _, _, size_of_bat = load_data_normalise_ind(train_battery, model_type)
         normalised_data_test, time_mean_test, time_std_test, size_of_bat_test = load_data_normalise_ind(test_battery, model_type)
         normalised_data_validation, _, _, size_of_bat_val = load_data_normalise_ind(validation_battery, model_type)
