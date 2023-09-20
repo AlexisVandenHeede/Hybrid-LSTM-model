@@ -22,6 +22,9 @@ def load_data_normalise_indv2(battery, model_type):
     for i in battery:
         data_file = f"data/{i}_TTD1.csv" if model_type == 'data' else f"data/{i}_TTD - with SOC.csv" if model_type == 'hybrid' else f"data/padded_data_mod_volt[{i}].csv" if model_type == 'data_padded' else f"data/padded_data_hybrid_w_ecm[{i}].csv"
         battery_data = pd.read_csv(data_file)
+        time = battery_data['Time']
+        time_mean = time.mean(axis=0)
+        time_std = time.std(axis=0)
         normalized_battery_data = (battery_data - battery_data.mean(axis=0)) / battery_data.std(axis=0)
         normalized_battery_data = normalized_battery_data.astype('float16')  # Convert to float16 to save memory
         data.append(normalized_battery_data)
@@ -34,9 +37,6 @@ def load_data_normalise_indv2(battery, model_type):
     data = data.loc[:, ~data.columns.str.contains('^Current')]
     if debug:
         print(data.columns)
-    time = data['Time']
-    time_mean = time.mean(axis=0)
-    time_std = time.std(axis=0)
 
     if debug:
         # Plot each normalized data
@@ -171,7 +171,7 @@ def basis_func(scaling_factor, hidden_layers):
     return basis_function
 
 
-def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser, verbose):
+def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser, verbose = False):
     """
     train model dataloaders, early stopper Class
     """
@@ -210,7 +210,10 @@ def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimi
         if early_stopper.early_stop(val_loss):
             print("Early stopping")
             break
-        if i > 10:
+        if val_loss > 10:
+            print('way too large vall loss')
+            break
+        if i > 5:
             if train_loss > 0.9:
                 print('no learning taking place')
                 break
@@ -409,7 +412,8 @@ def k_fold_datav2(normalised_data, seq_length, model_type, size_of_bat):
         y_tr = np.concatenate((y_tr_1, y_tr_2), axis=0)
 
     x_tr = torch.tensor(x_tr)
-    y_tr = torch.tensor(y_tr)
+    y_tr = torch.tensor(y_tr).unsqueeze(1).unsqueeze(2)
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     x_tr = x_tr.to(device).float()
     y_tr = y_tr.to(device).float()
@@ -462,6 +466,7 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
     print(f'model type = {model_type}')
     k_fold_rmse = []
     k_fold_raw_test = []
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     for i in range(4):
         battery_temp = battery.copy()
         test_battery = [battery[i]]
@@ -479,16 +484,20 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         normalised_data_test, time_mean_test, time_std_test, size_of_bat_test = load_data_normalise_indv2(test_battery, model_type)
         normalised_data_validation, _, _, size_of_bat_val = load_data_normalise_indv2(validation_battery, model_type)
         seq_length = hyperparameters[0]
+        print(f'you are here 1')
         X_train, y_train = k_fold_datav2(normalised_data_train, seq_length, model_type, size_of_bat)
         X_test, y_test = k_fold_datav2(normalised_data_test, seq_length, model_type, size_of_bat_test)
         X_validation, y_validation = k_fold_datav2(normalised_data_validation, seq_length, model_type, size_of_bat_val)
+        print(f'you are here 2')
         model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], hyperparameters[0], X_train.shape[2])
         lf = torch.nn.MSELoss()
         opimiser = torch.optim.Adam(model.parameters(), lr=hyperparameters[9])
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        print(f'you are here 3')
         model.to(device)
+        print(f'you are here 4')
         train_dataset = SeqDataset(x_data=X_train, y_data=y_train, seq_len=seq_length, batch=hyperparameters[10])
         validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, seq_len=seq_length, batch=hyperparameters[10])
+        print(f'you are here 5')
         model, train_loss_history, val_loss_history = train_batch_ind(model, train_dataset, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
         rmse_test, raw_test = eval_model(model, X_test, y_test, lf)
         print(f'rmse_test = {rmse_test}')
