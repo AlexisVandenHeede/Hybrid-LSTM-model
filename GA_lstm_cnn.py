@@ -1,5 +1,5 @@
 from deap import base, creator, tools, algorithms
-from scipy.stats import poisson
+from scipy.stats import bernoulli
 from helpfunction import kfold_ind
 import numpy as np
 from bitstring import BitArray
@@ -89,7 +89,7 @@ creator.create('FitnessMax', base.Fitness, weights=[-1.0])
 creator.create('Individual', list, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox()
-toolbox.register('binary', poisson.rvs, 0.5)
+toolbox.register('binary', bernoulli.rvs, 0.5)
 toolbox.register('individual', tools.initRepeat, creator.Individual, toolbox.binary, n=entire_bit_array_length)
 toolbox.register('population', tools.initRepeat, list, toolbox.individual)
 
