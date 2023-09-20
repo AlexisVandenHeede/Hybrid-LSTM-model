@@ -81,8 +81,8 @@ def train_evaluate(ga_individual_solution):
 
 np.random.seed(121)
 torch.manual_seed(0)
-population_size = 30
-num_generations = 10
+population_size = 50
+num_generations = 5
 entire_bit_array_length = 11*8
 
 creator.create('FitnessMax', base.Fitness, weights=[-1.0])
@@ -104,3 +104,9 @@ r = algorithms.eaSimple(population, toolbox, cxpb=0.4, mutpb=0.1, ngen=num_gener
 best_individual = tools.selBest(population, k=1)[0]
 print('Best ever individual = ', best_individual, '\nFitness = ', best_individual.fitness.values[0])
 print(f'list of individuals = {best_individual}')
+
+# data padded
+# [1, 1, 0, 1, 0, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 2, 0, 1, 0, 1, 0, 1, 0, 2, 0, 0, 0, 2, 2, 2, 1, 2, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0]
+# 0.504700, seed 121
+# Best ever individual =  [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 2, 0, 0, 1, 0, 2, 0, 1, 0, 2, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0]
+# Fitness =  0.40241796018103054 seed 121
