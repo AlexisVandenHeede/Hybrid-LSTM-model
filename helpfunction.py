@@ -410,7 +410,6 @@ def k_fold_datav2(normalised_data, seq_length, model_type, size_of_bat):
 
     x_tr = torch.tensor(x_tr)
     y_tr = torch.tensor(y_tr)
-
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     x_tr = x_tr.to(device).float()
     y_tr = y_tr.to(device).float()
