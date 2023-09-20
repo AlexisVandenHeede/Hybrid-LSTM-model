@@ -302,7 +302,8 @@ def seq_split(normalised_data, mean, std, seq_steps, model_type, size_of_bat):
     elif model_type == 'hybrid_padded':
         X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0.1', 'Unnamed: 0', 'Unnamed: 0.2'], axis=1)
     y = normalised_data['TTD'] 
-    print(X)
+    y_act = y * std + mean
+    print(y_act)
     df = pd.DataFrame()
     if len(size_of_bat) == 1:
         indx_jumps = y.where(y == 0, 1)

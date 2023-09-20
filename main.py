@@ -100,30 +100,30 @@ for i in range(4):
     normalised_data_val, _, _, size_of_bat_val = load_data_normalise_ind(val_battery, model_type)
     normalised_data_test, mean_ttd, std_ttd, size_of_bat_test = load_data_normalise_ind(test_battery, model_type)
 
-    x_train_bat, y_train_bat = seq_split(normalised_data_bat, mean_bat, std_bat, seq_steps=20, model_type=model_type, size_of_bat=size_of_bat_train)
-    x_val, y_val = k_fold_data(normalised_data_val, seq_length=seq_length, model_type=model_type, size_of_bat=size_of_bat_val)
-    x_test, y_test = k_fold_data(normalised_data_test, seq_length=seq_length, model_type=model_type, size_of_bat=size_of_bat_test)
+    # x_train_bat, y_train_bat = seq_split(normalised_data_bat, mean_bat, std_bat, seq_steps=20, model_type=model_type, size_of_bat=size_of_bat_train)
+    # x_val, y_val = k_fold_data(normalised_data_val, seq_length=seq_length, model_type=model_type, size_of_bat=size_of_bat_val)
+    x_test, y_test = seq_split(normalised_data_test, mean_ttd, std_ttd, seq_steps=20, model_type=model_type, size_of_bat=size_of_bat_test)
 
-    trainloader = SeqDataset(x_train_bat, y_data=y_train_bat, seq_len=seq_length, batch=batch_size)
-    val_loader = SeqDataset(x_val, y_data=y_val, seq_len=seq_length, batch=batch_size)
+    # trainloader = SeqDataset(x_train_bat, y_data=y_train_bat, seq_len=seq_length, batch=batch_size)
+    # val_loader = SeqDataset(x_val, y_data=y_val, seq_len=seq_length, batch=batch_size)
 
-    # Training model
-    model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, x_train_bat.shape[2])
-    lf = torch.nn.MSELoss()
-    opimiser = torch.optim.Adam(model.parameters(), lr=lr)
-    torch.manual_seed(0)
-    # device
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'device is {device}')
-    model.to(device)
-    model, train_loss_history, val_loss_history = train_batch_ind(model, trainloader, val_loader, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
+    # # Training model
+    # model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, x_train_bat.shape[2])
+    # lf = torch.nn.MSELoss()
+    # opimiser = torch.optim.Adam(model.parameters(), lr=lr)
+    # torch.manual_seed(0)
+    # # device
+    # device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # print(f'device is {device}')
+    # model.to(device)
+    # model, train_loss_history, val_loss_history = train_batch_ind(model, trainloader, val_loader, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
 
-    # Evaluation
-    eval_model(model, x_test, y_test, criterion=lf)
+    # # Evaluation
+    # eval_model(model, x_test, y_test, criterion=lf)
 
-    # Plotting
-    plot_loss(train_loss_history, val_loss_history)
-    plot_predictions(model, x_test, y_test, ttd_mean=mean_ttd, ttd_std=std_ttd, model_type=model_type)
+    # # Plotting
+    # plot_loss(train_loss_history, val_loss_history)
+    # plot_predictions(model, x_test, y_test, ttd_mean=mean_ttd, ttd_std=std_ttd, model_type=model_type)
 
 
 
