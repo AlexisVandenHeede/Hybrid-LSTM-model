@@ -7,8 +7,54 @@ from ParametricLSTMCNN import ParametricLSTMCNN
 from bitstring import BitArray
 
 
+def load_data_normalise_indv2(battery, model_type):
+    debug = True
+    """
+    Load the data and normalize it.
+    Return: normalized data, mean time, std time
+    """
+    data = []
+    size_of_bat = []
+    if model_type not in ['data', 'hybrid', 'data_padded', 'hybrid_padded']:
+        print('Wrong model type, either data, hybrid, data_padded, or hybrid_padded')
+        raise ValueError
+
+    for i in battery:
+        data_file = f"data/{i}_TTD1.csv" if model_type == 'data' else f"data/{i}_TTD - with SOC.csv" if model_type == 'hybrid' else f"data/padded_data_mod_volt[{i}].csv" if model_type == 'data_padded' else f"data/padded_data_hybrid_w_ecm[{i}].csv"
+        battery_data = pd.read_csv(data_file)
+        normalized_battery_data = (battery_data - battery_data.mean(axis=0)) / battery_data.std(axis=0)
+        data.append(normalized_battery_data)
+        size_of_bat.append(len(battery_data))
+
+    data = pd.concat(data)
+    if debug:
+        print(data.columns)
+    data = data.loc[:, ~data.columns.str.contains('^Unnamed')]
+    data = data.loc[:, ~data.columns.str.contains('^Current')]
+    if debug:
+        print(data.columns)
+    time = data['Time']
+    time_mean = time.mean(axis=0)
+    time_std = time.std(axis=0)
+
+    if debug:
+        # Plot each normalized data
+        thing = input('Press enter to see scatter plots of normalized data')
+        if thing == '':
+            for col in data.columns:
+                plt.figure(figsize=(8, 6))
+                plt.scatter(range(len(data)), data[col], s=5)
+                plt.title(f'Scatter Plot for {col}')
+                plt.xlabel('Data Point Index')
+                plt.ylabel('Normalized Value')
+                plt.grid(True)
+                plt.show()
+
+    return data, time_mean, time_std, size_of_bat
+
+
 def load_data_normalise_ind(battery, model_type):
-    debug = False
+    debug = True
     """
     Load the data and normalise it
     return: normalised data, mean time, std time
@@ -51,6 +97,10 @@ def load_data_normalise_ind(battery, model_type):
                 plt.ylabel('Normalized Value')
                 plt.grid(True)
                 plt.show()
+    # remove unnamed column 0.2
+    # print(normalised_data.columns)
+    # if model_type == 'hybrid_padded':
+    #     normalised_data = normalised_data.drop('Unnamed: 0.1', axis=0)
     return normalised_data, time_mean, time_std, size_of_bat
 
 
@@ -334,9 +384,9 @@ def eval_model(model, X_test, y_test, criterion):
 
 def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
     if model_type == 'data_padded' or model_type == 'data':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Unnamed: 0', 'Unnamed: 0.1'], axis=1)
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance'], axis=1)
     elif model_type == 'hybrid_padded':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0.1', 'Unnamed: 0'], axis=1)
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured',], axis=1)
     y = normalised_data['TTD']
     # print(f'shape of x and y is {X.shape}, {y.shape}')
     x_tr = []
@@ -373,7 +423,7 @@ def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
     return x_tr, y_tr
 
 
-def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
+def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
     k_fold_rmse = []
     k_fold_raw_test = []
     for i in range(4):
@@ -389,9 +439,9 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=False):
         print(f'validation battery is {validation_battery}')
         train_battery = battery_temp
         print(f'train batteries are {train_battery}')
-        normalised_data_train, _, _, size_of_bat = load_data_normalise_ind(train_battery, model_type)
-        normalised_data_test, time_mean_test, time_std_test, size_of_bat_test = load_data_normalise_ind(test_battery, model_type)
-        normalised_data_validation, _, _, size_of_bat_val = load_data_normalise_ind(validation_battery, model_type)
+        normalised_data_train, _, _, size_of_bat = load_data_normalise_indv2(train_battery, model_type)
+        normalised_data_test, time_mean_test, time_std_test, size_of_bat_test = load_data_normalise_indv2(test_battery, model_type)
+        normalised_data_validation, _, _, size_of_bat_val = load_data_normalise_indv2(validation_battery, model_type)
         seq_length = hyperparameters[0]
         X_train, y_train = k_fold_data(normalised_data_train, seq_length, model_type, size_of_bat)
         X_test, y_test = k_fold_data(normalised_data_test, seq_length, model_type, size_of_bat_test)
