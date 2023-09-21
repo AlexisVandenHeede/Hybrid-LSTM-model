@@ -180,8 +180,8 @@ def plot_loss(train_loss_history, val_loss_history):
 
 def plot_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
     predictions = model(X_test)
-    predictions = predictions.cpu() * ttd_std + ttd_mean
-    y_test = y_test.cpu() * ttd_std + ttd_mean
+    predictions = predictions.cpu() * ttd_std[0] + ttd_mean[0]
+    y_test = y_test.cpu() * ttd_std[0] + ttd_mean[0]
     plt.plot(y_test.squeeze(), label='Actual')
     plt.plot(predictions.detach().squeeze(), label='Prediction')
     plt.xlabel('Time')
@@ -295,10 +295,9 @@ def plot_average_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_typ
 
 
 class SeqDataset:
-    def __init__(self, x_data, y_data, seq_len, batch):
+    def __init__(self, x_data, y_data, batch):
         self.x_data = x_data
         self.y_data = y_data
-        self.seq_len = seq_len
         self.batch = batch
 
     def __len__(self):
@@ -421,43 +420,75 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
 
 def seq_split(battery, normalised_data, mean, std, seq_steps, model_type):
     # print(mean)
-    print(battery)
-    split_data_x = {}
-    split_data_y = {}
-    for i in range(len(battery)):
-        data_name = f'data_bat_{battery[i]}'
+    if len(battery) == 1:
+        xtr = []
+        ytr = []
+        data_name = f'data_bat_{battery[0]}'
         if model_type == 'data_padded' or model_type == 'data':
             X = normalised_data[data_name].drop(['TTD', 'Time', 'Start_time'], axis=1)
         elif model_type == 'hybrid_padded':
             X = normalised_data[data_name].drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured'], axis=1)
         y = normalised_data[data_name]['TTD']
-
-        y_not_norm = pd.Series(y * std[i] + mean[i])  # unnormalise y
-        indx = y_not_norm.index[y_not_norm == 0].tolist()  # find index of y = 0
-
+        y_not_norm = pd.Series(y * std[0] + mean[0])
+        indx = y_not_norm.index[y_not_norm == y_not_norm.min()].tolist()
         for j in range(len(indx)-1):
             cycle_diff = indx[j+1] - indx[j]
             seq_length = cycle_diff//seq_steps
-            for k in range(seq_length, cycle_diff):
-                split_data_x[f'{k}'] = X.values[k-seq_length:k]
-                split_data_y[f'{k}'] = y.values[k]
+            if seq_length > 0:
+                for k in range(seq_length, cycle_diff):
+                    xtr.append(torch.tensor(X.values[k-seq_length:k]))
+                    ytr.append(torch.tensor(y.values[k]))
+        xtr = torch.nn.utils.rnn.pad_sequence(xtr, batch_first=True, padding_value=0)
+        ytr = torch.tensor(ytr)
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        x_tr = xtr.to(device).float()
+        y_tr = ytr.to(device).float().unsqueeze(1).unsqueeze(2)
+        return x_tr, y_tr
+        
+    if len(battery) == 2:
+        xtr_1 = []
+        xtr_2 = []
+        ytr_1 = []
+        ytr_2 = []
+        for i in range(len(battery)):
+            data_name = f'data_bat_{battery[i]}'
+            if model_type == 'data_padded' or model_type == 'data':
+                X = normalised_data[data_name].drop(['TTD', 'Time', 'Start_time'], axis=1)
+            elif model_type == 'hybrid_padded':
+                X = normalised_data[data_name].drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured'], axis=1)
+            y = normalised_data[data_name]['TTD']
 
-        seq_length = len(X)//seq_steps
-        for i in range(seq_length, len(X)):
-            split_data_x[f'{i}'] = X.values[i-seq_length:i]
-            split_data_y[f'{i}'] = y.values[i]
-    
-        # split_data_x[f'{i}'] = np.array(list(split_data_x[f'{i}']))
-        # split_data_y[f'{i}'] = np.array(list(split_data_y[f'{i}']))
-    
-        x_tr = torch.tensor(split_data_x[f'{i}'])
-        y_tr = torch.tensor(split_data_y[f'{i}'])
-        print(x_tr.shape)
-    
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    x_tr = x_tr.to(device).float()
-    y_tr = y_tr.to(device).float()
-    return x_tr, y_tr
+            y_not_norm = pd.Series(y * std[i] + mean[i])  # unnormalise y
+            indx = y_not_norm.index[y_not_norm == y_not_norm.min()].tolist()  # find index of y = 0
+            if i == 0:
+                for j in range(len(indx)-1):
+                    cycle_diff = indx[j+1] - indx[j]
+                    seq_length = cycle_diff//seq_steps
+                    if seq_length > 0:
+                        for k in range(seq_length, cycle_diff):
+                            xtr_1.append(torch.tensor(X.values[k-seq_length:k]))
+                            ytr_1.append(torch.tensor(y.values[k]))
+            else:
+                for j in range(len(indx)-1):
+                    cycle_diff = indx[j+1] - indx[j]
+                    seq_length = cycle_diff//seq_steps
+                    if seq_length > 0:
+                        for k in range(seq_length, cycle_diff):
+                            xtr_2.append(torch.tensor(X.values[k-seq_length:k]))
+                            ytr_2.append(torch.tensor(y.values[k]))
+
+        xtr_1_padded = torch.nn.utils.rnn.pad_sequence(xtr_1, batch_first=True, padding_value=0)
+        xtr_2_padded = torch.nn.utils.rnn.pad_sequence(xtr_2, batch_first=True, padding_value=0)
+        ytr_1 = torch.tensor(ytr_1)
+        ytr_2 = torch.tensor(ytr_2)
+
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        x_tr_1 = xtr_1_padded.to(device).float()
+        y_tr_1 = ytr_1.to(device).float().unsqueeze(1).unsqueeze(2)
+        x_tr_2 = xtr_2_padded.to(device).float()
+        y_tr_2 = ytr_2.to(device).float().unsqueeze(1).unsqueeze(2)
+        
+        return x_tr_1, y_tr_1, x_tr_2, y_tr_2
 
 
 def bit_to_hyperparameters(bit):
