@@ -55,7 +55,7 @@ def load_data_normalise_indv2(battery, model_type):
 
 
 def load_data_normalise_ind(battery, model_type):
-    debug = True
+    debug = False
     """
     Load the data and normalise it
     return: normalised data, mean time, std time
@@ -463,7 +463,7 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         if strict:
             if np.mean(k_fold_rmse) > 1:
                 print(f'average = {np.mean(k_fold_rmse)}')
-                print(f'rmse too high')
+                print('rmse too high')
                 k_fold_rmse = 100
                 break
     rmse_test = np.mean(k_fold_rmse)
