@@ -1,4 +1,5 @@
 from helpfunction import load_data_normalise_indv2, SeqDataset, plot_loss, plot_predictions, bit_to_hyperparameters, eval_model, train_batch_ind, k_fold_datav2, plot_average_predictionsv2, basis_func
+from helpfunction import load_data_normalise_indv2, SeqDataset, plot_loss, plot_predictions, bit_to_hyperparameters, eval_model, train_batch_ind, k_fold_datav2, plot_average_predictionsv2, basis_func
 from ParametricLSTMCNN import ParametricLSTMCNN
 import torch
 import numpy as np
@@ -22,6 +23,7 @@ import numpy as np
 # #  0.31487230597996485
 # # [0, 1, 0, 0, 2, 2, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 2, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 2, 0, 1, 1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 2, 2, 1, 0, 2, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 1, 1, 0, 0]
 # #  0.33249841991347645
+
 # # hybrid padded
 # # bit = [0, 1, 2, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, 2, 0, 1, 0, 0, 1, 1, 1, 2, 0, 0, 0, 1, 2, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 2, 1, 0, 0, 1, 1, 0, 1, 0, 1, 2, 0, 0, 0, 2, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0]
 # #  0.3842639607759947
@@ -67,6 +69,8 @@ import numpy as np
 # # plot_predictions(model, X_test, y_test, ttd_mean=time_mean, ttd_std=time_std, model_type=model_type)
 
 
+
+
 ### data split using individual batteries and trained to flip between batteries
 verbose = True
 battery = ['B0005', 'B0006', 'B0007', 'B0018']
@@ -83,9 +87,9 @@ seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, paddin
 if verbose:
     print(f'model type is {model_type}')
 if model_type == 'hybrid_padded':
-    inputlstm = 7
+    inputlstm = 5
 elif model_type == 'data_padded':
-    inputlstm = 6
+    inputlstm = 4
 
 # model initialisation
 model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, inputlstm)
@@ -97,6 +101,7 @@ np.random.seed(121)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'device is {device}')
 model.to(device)
+
 
 for i in range(4):
     battery_temp = battery.copy()

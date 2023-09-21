@@ -38,18 +38,18 @@ def load_data_normalise_indv2(battery, model_type):
     if debug:
         print(data.columns)
 
-    if debug:
-        # Plot each normalized data
-        thing = input('Press enter to see scatter plots of normalized data')
-        if thing == '':
-            for col in data.columns:
-                plt.figure(figsize=(8, 6))
-                plt.scatter(range(len(data)), data[col], s=5)
-                plt.title(f'Scatter Plot for {col}')
-                plt.xlabel('Data Point Index')
-                plt.ylabel('Normalized Value')
-                plt.grid(True)
-                plt.show()
+    # if debug:
+    #     # Plot each normalized data
+    #     thing = input('Press enter to see scatter plots of normalized data')
+    #     if thing == '':
+    #         for col in data.columns:
+    #             plt.figure(figsize=(8, 6))
+    #             plt.scatter(range(len(data)), data[col], s=5)
+    #             plt.title(f'Scatter Plot for {col}')
+    #             plt.xlabel('Data Point Index')
+    #             plt.ylabel('Normalized Value')
+    #             plt.grid(True)
+    #             plt.show()
 
     return data, time_mean, time_std, size_of_bat
 
@@ -388,9 +388,9 @@ def k_fold_datav2(normalised_data, seq_length, model_type, size_of_bat):
     if model_type == 'data_padded' or model_type == 'data':
         X = normalised_data.drop(['TTD', 'Time', 'Start_time'], axis=1)
     elif model_type == 'hybrid_padded':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured'], axis=1)
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0', 'Unnamed: 0.1', 'Unnamed: 0.2'], axis=1)
     y = normalised_data['TTD']
-
+    print(X)
     if len(size_of_bat) == 1:
         x_tr = np.empty((len(X) - seq_length, seq_length, X.shape[1]))
         y_tr = np.empty((len(X) - seq_length, 1, 1))
@@ -526,3 +526,43 @@ def bit_to_hyperparameters(bit):
     hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
     print(f'hyperparameters: {hyperparameters}')
     return seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch, hyperparameters
+
+
+def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
+    if model_type == 'data_padded' or model_type == 'data':
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time'], axis=1)
+    elif model_type == 'hybrid_padded':
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured',], axis=1)
+    y = normalised_data['TTD']
+    # print(f'shape of x and y is {X.shape}, {y.shape}')
+    x_tr = []
+    y_tr = []
+    if len(size_of_bat) == 1:
+        x_tr = []
+        y_tr = []
+        for i in range(seq_length, len(X)):
+            x_tr.append(X.values[i-seq_length:i])
+            y_tr.append(y.values[i])
+        x_tr = np.array(x_tr)
+        y_tr = np.array(y_tr)
+    if len(size_of_bat) == 2:
+        x_tr_1 = []
+        y_tr_1 = []
+        x_tr_2 = []
+        y_tr_2 = []
+        for i in range(seq_length, size_of_bat[0]):
+            x_tr_1.append(X.values[i-seq_length:i])
+            y_tr_1.append(y.values[i])
+        for i in range(seq_length, size_of_bat[1]):
+            x_tr_2.append(X.values[i-seq_length:i])
+            y_tr_2.append(y.values[i])
+        x_tr = np.concatenate((np.array(x_tr_1), np.array(x_tr_2)), axis=0)
+        y_tr = np.concatenate((np.array(y_tr_1), np.array(y_tr_2)), axis=0)
+    
+    x_tr = torch.tensor((x_tr))
+    y_tr = torch.tensor((y_tr)).unsqueeze(1).unsqueeze(2)
+    # print(f'shape of x_tr is {x_tr.shape}, shape of y_tr is {y_tr.shape}')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    x_tr = x_tr.to(device).float()
+    y_tr = y_tr.to(device).float()
+    return x_tr, y_tr
