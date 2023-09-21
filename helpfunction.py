@@ -76,8 +76,8 @@ def load_data_normalise_ind(battery, model_type):
             size_of_bat.append(len(pd.read_csv(f"data/padded_data_mod_volt[{i}].csv")))
     elif model_type == 'hybrid_padded':
         for i in battery:
-            data.append(pd.read_csv(f"data/padded_data_hybrid_w_ecm[{i}].csv"))
-            size_of_bat.append(len(pd.read_csv(f"data/padded_data_hybrid_w_ecm[{i}].csv")))
+            data.append(pd.read_csv(f"data/padded_hybrid_mod_volt[{i}].csv"))
+            size_of_bat.append(len(pd.read_csv(f"data/padded_hybrid_mod_volt[{i}].csv")))
     else:
         print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
         raise NameError
@@ -388,9 +388,8 @@ def k_fold_datav2(normalised_data, seq_length, model_type, size_of_bat):
     if model_type == 'data_padded' or model_type == 'data':
         X = normalised_data.drop(['TTD', 'Time', 'Start_time'], axis=1)
     elif model_type == 'hybrid_padded':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured', 'Unnamed: 0', 'Unnamed: 0.1', 'Unnamed: 0.2'], axis=1)
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured'], axis=1)
     y = normalised_data['TTD']
-    print(X)
     if len(size_of_bat) == 1:
         x_tr = np.empty((len(X) - seq_length, seq_length, X.shape[1]))
         y_tr = np.empty((len(X) - seq_length, 1, 1))
