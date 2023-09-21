@@ -462,7 +462,7 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         if strict:
             if np.mean(k_fold_rmse) > 1:
                 print(f'average = {np.mean(k_fold_rmse)}')
-                print(f'rmse too high')
+                print('rmse too high')
                 k_fold_rmse = 100
                 break
     rmse_test = np.mean(k_fold_rmse)

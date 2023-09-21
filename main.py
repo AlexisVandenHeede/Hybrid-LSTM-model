@@ -1,4 +1,5 @@
 from helpfunction import load_data_normalise_indv2, SeqDataset, plot_loss, plot_predictions, bit_to_hyperparameters, eval_model, train_batch_ind, k_fold_datav2, plot_average_predictionsv2, basis_func
+from helpfunction import load_data_normalise_indv2, SeqDataset, plot_loss, plot_predictions, bit_to_hyperparameters, eval_model, train_batch_ind, k_fold_datav2, plot_average_predictionsv2, basis_func
 from ParametricLSTMCNN import ParametricLSTMCNN
 import torch
 import numpy as np
@@ -119,11 +120,11 @@ for i in range(4):
     normalised_data_bat, _, _, size_of_bat_train = load_data_normalise_indv2(train_battery, model_type)
     normalised_data_val, _, _, size_of_bat_val = load_data_normalise_indv2(val_battery, model_type)
     normalised_data_test, mean_ttd, std_ttd, size_of_bat_test = load_data_normalise_indv2(test_battery, model_type)
-    print(normalised_data_bat.shape, normalised_data_val.shape, normalised_data_test.shape)
+
     x_train_bat, y_train_bat = k_fold_datav2(normalised_data_bat, seq_length=seq_length, model_type=model_type, size_of_bat=size_of_bat_train)
     x_val, y_val = k_fold_datav2(normalised_data_val, seq_length=seq_length, model_type=model_type, size_of_bat=size_of_bat_val)
     x_test, y_test = k_fold_datav2(normalised_data_test, seq_length=seq_length, model_type=model_type, size_of_bat=size_of_bat_test)
-    print(x_train_bat.shape, y_train_bat.shape, x_val.shape, y_val.shape, x_test.shape, y_test.shape)
+
     trainloader = SeqDataset(x_train_bat, y_data=y_train_bat, seq_len=seq_length, batch=batch_size)
     val_loader = SeqDataset(x_val, y_data=y_val, seq_len=seq_length, batch=batch_size)
 
