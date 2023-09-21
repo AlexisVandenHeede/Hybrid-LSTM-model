@@ -289,3 +289,52 @@ def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
     x_tr = x_tr.to(device).float()
     y_tr = y_tr.to(device).float()
     return x_tr, y_tr
+
+
+def load_data_normalise_ind(battery, model_type):
+    debug = False
+    """
+    Load the data and normalise it
+    return: normalised data, mean time, std time
+    """
+    data = []
+    size_of_bat = []
+    if model_type == 'data':
+        for i in battery:
+            data.append(pd.read_csv("data/" + i + "_TTD1.csv"))
+            size_of_bat.append(len(pd.read_csv("data/" + i + "_TTD1.csv")))
+    elif model_type == 'hybrid':
+        for i in battery:
+            data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
+            size_of_bat.append(len(pd.read_csv("data/" + i + "_TTD - with SOC.csv")))
+    elif model_type == 'data_padded':
+        for i in battery:
+            data.append(pd.read_csv(f"data/padded_data_mod_volt[{i}].csv"))
+            size_of_bat.append(len(pd.read_csv(f"data/padded_data_mod_volt[{i}].csv")))
+    elif model_type == 'hybrid_padded':
+        for i in battery:
+            data.append(pd.read_csv(f"data/padded_hybrid_mod_volt[{i}].csv"))
+            size_of_bat.append(len(pd.read_csv(f"data/padded_hybrid_mod_volt[{i}].csv")))
+    else:
+        print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
+        raise NameError
+    data = pd.concat(data)
+    time = data['Time']
+    time_mean = time.mean(axis=0)
+    time_std = time.std(axis=0)
+    normalised_data = (data - data.mean(axis=0)) / data.std(axis=0)
+    if debug:
+        # plot each normalised data
+        thing = input('Press enter to see scatter plots of normalised data')
+        if thing == '':
+            for col in normalised_data.columns:
+                plt.figure(figsize=(8, 6))
+                plt.scatter(range(len(normalised_data)), normalised_data[col], s=5)
+                plt.title(f'Scatter Plot for {col}')
+                plt.xlabel('Data Point Index')
+                plt.ylabel('Normalized Value')
+                plt.grid(True)
+                plt.show()
+
+    return normalised_data, time_mean, time_std, size_of_bat
+

@@ -13,96 +13,44 @@ def load_data_normalise_indv2(battery, model_type):
     Load the data and normalize it.
     Return: normalized data, mean time, std time
     """
-    data = []
+    data = {}
     size_of_bat = []
+    means = []
+    stds = []
     if model_type not in ['data', 'hybrid', 'data_padded', 'hybrid_padded']:
         print('Wrong model type, either data, hybrid, data_padded, or hybrid_padded')
         raise ValueError
 
     for i in battery:
-        data_file = f"data/{i}_TTD1.csv" if model_type == 'data' else f"data/{i}_TTD - with SOC.csv" if model_type == 'hybrid' else f"data/padded_data_mod_volt[{i}].csv" if model_type == 'data_padded' else f"data/padded_data_hybrid_w_ecm[{i}].csv"
+        data_file = f"data/{i}_TTD1.csv" if model_type == 'data' else f"data/{i}_TTD - with SOC.csv" if model_type == 'hybrid' else f"data/padded_data_mod_volt[{i}].csv" if model_type == 'data_padded' else f"data/padded_hybrid_mod_volt[{i}].csv"
         battery_data = pd.read_csv(data_file)
         time = battery_data['Time']
         time_mean = time.mean(axis=0)
         time_std = time.std(axis=0)
         normalized_battery_data = (battery_data - battery_data.mean(axis=0)) / battery_data.std(axis=0)
         normalized_battery_data = normalized_battery_data.astype('float16')  # Convert to float16 to save memory
-        data.append(normalized_battery_data)
+        data_name = f'data_bat_{i}'
+        data[data_name] = normalized_battery_data
+        means.append(time_mean)
+        stds.append(time_std)
+        # data.append(normalized_battery_data)
         size_of_bat.append(len(battery_data))
-
-    data = pd.concat(data)
-    if debug:
-        print(data.columns)
-    data = data.loc[:, ~data.columns.str.contains('^Unnamed')]
-    data = data.loc[:, ~data.columns.str.contains('^Current')]
+ 
+    # data = pd.concat(data)
     if debug:
         print(data.columns)
 
-    # if debug:
-    #     # Plot each normalized data
-    #     thing = input('Press enter to see scatter plots of normalized data')
-    #     if thing == '':
-    #         for col in data.columns:
-    #             plt.figure(figsize=(8, 6))
-    #             plt.scatter(range(len(data)), data[col], s=5)
-    #             plt.title(f'Scatter Plot for {col}')
-    #             plt.xlabel('Data Point Index')
-    #             plt.ylabel('Normalized Value')
-    #             plt.grid(True)
-    #             plt.show()
+    for i in battery:
+        data_name = f'data_bat_{i}'
+        data[data_name] = data[data_name].loc[:, ~data[data_name].columns.str.contains("^Unnamed")]  # Remove unnamed columns
+        data[data_name] = data[data_name].loc[:, ~data[data_name].columns.str.contains("^Current")]  # Remove current columns
 
-    return data, time_mean, time_std, size_of_bat
-
-
-def load_data_normalise_ind(battery, model_type):
-    debug = False
-    """
-    Load the data and normalise it
-    return: normalised data, mean time, std time
-    """
-    data = []
-    size_of_bat = []
-    if model_type == 'data':
-        for i in battery:
-            data.append(pd.read_csv("data/" + i + "_TTD1.csv"))
-            size_of_bat.append(len(pd.read_csv("data/" + i + "_TTD1.csv")))
-    elif model_type == 'hybrid':
-        for i in battery:
-            data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
-            size_of_bat.append(len(pd.read_csv("data/" + i + "_TTD - with SOC.csv")))
-    elif model_type == 'data_padded':
-        for i in battery:
-            data.append(pd.read_csv(f"data/padded_data_mod_volt[{i}].csv"))
-            size_of_bat.append(len(pd.read_csv(f"data/padded_data_mod_volt[{i}].csv")))
-    elif model_type == 'hybrid_padded':
-        for i in battery:
-            data.append(pd.read_csv(f"data/padded_hybrid_mod_volt[{i}].csv"))
-            size_of_bat.append(len(pd.read_csv(f"data/padded_hybrid_mod_volt[{i}].csv")))
-    else:
-        print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
-        raise NameError
-    data = pd.concat(data)
-    time = data['Time']
-    time_mean = time.mean(axis=0)
-    time_std = time.std(axis=0)
-    normalised_data = (data - data.mean(axis=0)) / data.std(axis=0)
+    # data = data.loc[:, ~data.columns.str.contains('^Unnamed')]
+    # data = data.loc[:, ~data.columns.str.contains('^Current')]
     if debug:
-        # plot each normalised data
-        thing = input('Press enter to see scatter plots of normalised data')
-        if thing == '':
-            for col in normalised_data.columns:
-                plt.figure(figsize=(8, 6))
-                plt.scatter(range(len(normalised_data)), normalised_data[col], s=5)
-                plt.title(f'Scatter Plot for {col}')
-                plt.xlabel('Data Point Index')
-                plt.ylabel('Normalized Value')
-                plt.grid(True)
-                plt.show()
-    # remove unnamed column 0.2
-    # print(normalised_data.columns)
-    # if model_type == 'hybrid_padded':
-    #     normalised_data = normalised_data.drop('Unnamed: 0.1', axis=0)
-    return normalised_data, time_mean, time_std, size_of_bat
+        print(data.columns)
+
+    return data, means, stds, size_of_bat
 
 
 def train_test_validation_split(X, y, test_size, cv_size):
@@ -412,7 +360,7 @@ def k_fold_datav2(normalised_data, seq_length, model_type, size_of_bat):
 
     x_tr = torch.tensor(x_tr)
     y_tr = torch.tensor(y_tr)
-
+    print(x_tr.shape)
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     x_tr = x_tr.to(device).float()
     y_tr = y_tr.to(device).float()
@@ -471,6 +419,47 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
     return rmse_test
 
 
+def seq_split(battery, normalised_data, mean, std, seq_steps, model_type):
+    # print(mean)
+    print(battery)
+    split_data_x = {}
+    split_data_y = {}
+    for i in range(len(battery)):
+        data_name = f'data_bat_{battery[i]}'
+        if model_type == 'data_padded' or model_type == 'data':
+            X = normalised_data[data_name].drop(['TTD', 'Time', 'Start_time'], axis=1)
+        elif model_type == 'hybrid_padded':
+            X = normalised_data[data_name].drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured'], axis=1)
+        y = normalised_data[data_name]['TTD']
+
+        y_not_norm = pd.Series(y * std[i] + mean[i])  # unnormalise y
+        indx = y_not_norm.index[y_not_norm == 0].tolist()  # find index of y = 0
+
+        for j in range(len(indx)-1):
+            cycle_diff = indx[j+1] - indx[j]
+            seq_length = cycle_diff//seq_steps
+            for k in range(seq_length, cycle_diff):
+                split_data_x[f'{k}'] = X.values[k-seq_length:k]
+                split_data_y[f'{k}'] = y.values[k]
+
+        seq_length = len(X)//seq_steps
+        for i in range(seq_length, len(X)):
+            split_data_x[f'{i}'] = X.values[i-seq_length:i]
+            split_data_y[f'{i}'] = y.values[i]
+    
+        # split_data_x[f'{i}'] = np.array(list(split_data_x[f'{i}']))
+        # split_data_y[f'{i}'] = np.array(list(split_data_y[f'{i}']))
+    
+        x_tr = torch.tensor(split_data_x[f'{i}'])
+        y_tr = torch.tensor(split_data_y[f'{i}'])
+        print(x_tr.shape)
+    
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    x_tr = x_tr.to(device).float()
+    y_tr = y_tr.to(device).float()
+    return x_tr, y_tr
+
+
 def bit_to_hyperparameters(bit):
     gene_length = 8
     n_epoch = 100
@@ -526,42 +515,3 @@ def bit_to_hyperparameters(bit):
     print(f'hyperparameters: {hyperparameters}')
     return seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch, hyperparameters
 
-
-def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
-    if model_type == 'data_padded' or model_type == 'data':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time'], axis=1)
-    elif model_type == 'hybrid_padded':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured',], axis=1)
-    y = normalised_data['TTD']
-    # print(f'shape of x and y is {X.shape}, {y.shape}')
-    x_tr = []
-    y_tr = []
-    if len(size_of_bat) == 1:
-        x_tr = []
-        y_tr = []
-        for i in range(seq_length, len(X)):
-            x_tr.append(X.values[i-seq_length:i])
-            y_tr.append(y.values[i])
-        x_tr = np.array(x_tr)
-        y_tr = np.array(y_tr)
-    if len(size_of_bat) == 2:
-        x_tr_1 = []
-        y_tr_1 = []
-        x_tr_2 = []
-        y_tr_2 = []
-        for i in range(seq_length, size_of_bat[0]):
-            x_tr_1.append(X.values[i-seq_length:i])
-            y_tr_1.append(y.values[i])
-        for i in range(seq_length, size_of_bat[1]):
-            x_tr_2.append(X.values[i-seq_length:i])
-            y_tr_2.append(y.values[i])
-        x_tr = np.concatenate((np.array(x_tr_1), np.array(x_tr_2)), axis=0)
-        y_tr = np.concatenate((np.array(y_tr_1), np.array(y_tr_2)), axis=0)
-    
-    x_tr = torch.tensor((x_tr))
-    y_tr = torch.tensor((y_tr)).unsqueeze(1).unsqueeze(2)
-    # print(f'shape of x_tr is {x_tr.shape}, shape of y_tr is {y_tr.shape}')
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    x_tr = x_tr.to(device).float()
-    y_tr = y_tr.to(device).float()
-    return x_tr, y_tr
