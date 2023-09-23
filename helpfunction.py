@@ -22,7 +22,7 @@ def load_data_normalise_indv2(battery, model_type):
     for i in battery:
         data_file = f"data/{i}_TTD1.csv" if model_type == 'data' else f"data/{i}_TTD - with SOC.csv" if model_type == 'hybrid' else f"data/padded_data_mod_volt[{i}].csv" if model_type == 'data_padded' else f"data/padded_data_hybrid_w_ecm[{i}].csv"
         battery_data = pd.read_csv(data_file)
-        time = battery_data['Time']
+        time = battery_data['TTD']
         time_mean = time.mean(axis=0)
         time_std = time.std(axis=0)
         normalized_battery_data = (battery_data - battery_data.mean(axis=0)) / battery_data.std(axis=0)
