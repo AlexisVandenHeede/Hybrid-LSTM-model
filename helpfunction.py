@@ -24,7 +24,7 @@ def load_data_normalise_indv2(battery, model_type):
     for i in battery:
         data_file = f"data/{i}_TTD1.csv" if model_type == 'data' else f"data/{i}_TTD - with SOC.csv" if model_type == 'hybrid' else f"data/padded_data_mod_volt[{i}].csv" if model_type == 'data_padded' else f"data/padded_hybrid_mod_volt[{i}].csv"
         battery_data = pd.read_csv(data_file)
-        time = battery_data['Time']
+        time = battery_data['TTD']
         time_mean = time.mean(axis=0)
         time_std = time.std(axis=0)
         normalized_battery_data = (battery_data - battery_data.mean(axis=0)) / battery_data.std(axis=0)
@@ -385,25 +385,26 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         print(f'validation battery is {validation_battery}')
         train_battery = battery_temp
         print(f'train batteries are {train_battery}')
-        normalised_data_train, _, _, size_of_bat = load_data_normalise_indv2(train_battery, model_type)
-        normalised_data_test, time_mean_test, time_std_test, size_of_bat_test = load_data_normalise_indv2(test_battery, model_type)
-        normalised_data_validation, _, _, size_of_bat_val = load_data_normalise_indv2(validation_battery, model_type)
-        seq_length = hyperparameters[0]
-        X_train, y_train = k_fold_datav2(normalised_data_train, seq_length, model_type, size_of_bat)
-        X_test, y_test = k_fold_datav2(normalised_data_test, seq_length, model_type, size_of_bat_test)
-        X_validation, y_validation = k_fold_datav2(normalised_data_validation, seq_length, model_type, size_of_bat_val)
-        model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], hyperparameters[0], X_train.shape[2])
+        normalised_data_train, mean_train, std_train, size_of_bat = load_data_normalise_indv2(train_battery, model_type)
+        normalised_data_test, mean_test, std_test, size_of_bat_test = load_data_normalise_indv2(test_battery, model_type)
+        normalised_data_validation, mean_val, std_val, size_of_bat_val = load_data_normalise_indv2(validation_battery, model_type)
+        seq_steps = hyperparameters[0]
+        X_train_1, y_train_1, X_train_2, y_train_2 = seq_split(train_battery, normalised_data_train, mean_train, std_train, seq_steps, model_type)
+        X_test, y_test = seq_split(test_battery, normalised_data_test, mean_test, std_test, seq_steps, model_type)
+        X_validation, y_validation = seq_split(validation_battery, normalised_data_validation, mean_val, std_val, seq_steps, model_type)
+        seq_length = X_train_1.shape[1]
+        model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], seq_length, X_train_1.shape[2])
         lf = torch.nn.MSELoss()
         opimiser = torch.optim.Adam(model.parameters(), lr=hyperparameters[9])
         model.to(device)
-        train_dataset = SeqDataset(x_data=X_train, y_data=y_train, seq_len=seq_length, batch=hyperparameters[10])
-        validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, seq_len=seq_length, batch=hyperparameters[10])
+        train_dataset = SeqDataset(x_data=X_train_1, y_data=y_train_1, batch=hyperparameters[10])
+        validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, batch=hyperparameters[10])
         model, train_loss_history, val_loss_history = train_batch_ind(model, train_dataset, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
         rmse_test, raw_test = eval_model(model, X_test, y_test, lf)
         print(f'rmse_test = {rmse_test}')
         if plot:
             plot_loss(train_loss_history, val_loss_history)
-            plot_predictions(model, X_test, y_test, time_mean_test, time_std_test, model_type)
+            plot_predictions(model, X_test, y_test, mean_test, std_test, model_type)
         k_fold_rmse.append(rmse_test)
         k_fold_raw_test.append(raw_test)
         if strict:
@@ -431,18 +432,19 @@ def seq_split(battery, normalised_data, mean, std, seq_steps, model_type):
         y = normalised_data[data_name]['TTD']
         y_not_norm = pd.Series(y * std[0] + mean[0])
         indx = y_not_norm.index[y_not_norm == y_not_norm.min()].tolist()
+        indx = [0] + indx
         for j in range(len(indx)-1):
             cycle_diff = indx[j+1] - indx[j]
             seq_length = cycle_diff//seq_steps
             if seq_length > 0:
-                for k in range(seq_length, cycle_diff):
+                for k in range(indx[j]+seq_length, indx[j] + cycle_diff+1):
                     xtr.append(torch.tensor(X.values[k-seq_length:k]))
                     ytr.append(torch.tensor(y.values[k]))
-        xtr = torch.nn.utils.rnn.pad_sequence(xtr, batch_first=True, padding_value=0)
-        ytr = torch.tensor(ytr)
+        xtr = torch.nn.utils.rnn.pad_sequence(xtr, batch_first=True)
+        ytr = torch.nn.utils.rnn.pad_sequence(torch.tensor(ytr).unsqueeze(1).unsqueeze(2), batch_first=True)
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         x_tr = xtr.to(device).float()
-        y_tr = ytr.to(device).float().unsqueeze(1).unsqueeze(2)
+        y_tr = ytr.to(device).float()
         return x_tr, y_tr
         
     if len(battery) == 2:
@@ -477,16 +479,17 @@ def seq_split(battery, normalised_data, mean, std, seq_steps, model_type):
                             xtr_2.append(torch.tensor(X.values[k-seq_length:k]))
                             ytr_2.append(torch.tensor(y.values[k]))
 
-        xtr_1_padded = torch.nn.utils.rnn.pad_sequence(xtr_1, batch_first=True, padding_value=0)
-        xtr_2_padded = torch.nn.utils.rnn.pad_sequence(xtr_2, batch_first=True, padding_value=0)
-        ytr_1 = torch.tensor(ytr_1)
-        ytr_2 = torch.tensor(ytr_2)
+        xtr_1_padded = torch.nn.utils.rnn.pad_sequence(xtr_1, batch_first=True)
+        xtr_2_padded = torch.nn.utils.rnn.pad_sequence(xtr_2, batch_first=True)
+
+        ytr_1 = torch.nn.utils.rnn.pad_sequence(torch.tensor(ytr_1).unsqueeze(1).unsqueeze(2), batch_first=True)
+        ytr_2 = torch.nn.utils.rnn.pad_sequence(torch.tensor(ytr_2).unsqueeze(1).unsqueeze(2), batch_first=True)
 
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         x_tr_1 = xtr_1_padded.to(device).float()
-        y_tr_1 = ytr_1.to(device).float().unsqueeze(1).unsqueeze(2)
+        y_tr_1 = ytr_1.to(device).float()
         x_tr_2 = xtr_2_padded.to(device).float()
-        y_tr_2 = ytr_2.to(device).float().unsqueeze(1).unsqueeze(2)
+        y_tr_2 = ytr_2.to(device).float()
         
         return x_tr_1, y_tr_1, x_tr_2, y_tr_2
 

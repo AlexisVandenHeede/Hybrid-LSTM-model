@@ -26,7 +26,7 @@ def train_evaluate(ga_individual_solution):
     gene_length = 8
     n_epoch = 100
 
-    seq_length = BitArray(ga_individual_solution[0:gene_length])
+    seq_steps = BitArray(ga_individual_solution[0:gene_length])
     num_layers_conv = BitArray(ga_individual_solution[gene_length:2*gene_length])
     output_channels = BitArray(ga_individual_solution[2*gene_length:3*gene_length])
     kernel_sizes = BitArray(ga_individual_solution[3*gene_length:4*gene_length])
@@ -38,7 +38,7 @@ def train_evaluate(ga_individual_solution):
     lr = BitArray(ga_individual_solution[9*gene_length:10*gene_length])
     batch_size = BitArray(ga_individual_solution[10*gene_length:11*gene_length])
 
-    seq_length = seq_length.uint
+    seq_steps = seq_steps.uint
     num_layers_conv = num_layers_conv.uint
     output_channels = output_channels.uint
     kernel_sizes = kernel_sizes.uint
@@ -51,7 +51,7 @@ def train_evaluate(ga_individual_solution):
     batch_size = batch_size.uint
 
     # resize hyperparameterss to be within range
-    seq_length = int(np.interp(seq_length, [0, 255], [1, 50]))
+    seq_steps = int(np.interp(seq_steps, [0, 255], [2, 20]))
     num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [1, 8]))
     output_channels = int(np.interp(output_channels, [0, 255], [1, 10]))
     kernel_sizes = int(np.interp(kernel_sizes, [0, 255], [1, 10]))
@@ -73,14 +73,14 @@ def train_evaluate(ga_individual_solution):
     hidden_neurons_dense.append(1)
     hidden_neurons_dense[-1] = 1
 
-    hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
+    hyperparameters = [seq_steps, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
     print(f'hyperparameters: {hyperparameters}')
     loss = kfold_ind(model_type='data_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=False, strict=True)
     return [loss]
 
 
 np.random.seed(121)
-torch.manual_seed(0)
+torch.cuda.manual_seed(0)
 population_size = 50
 num_generations = 5
 entire_bit_array_length = 11*8
