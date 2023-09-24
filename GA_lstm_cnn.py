@@ -5,6 +5,8 @@ import numpy as np
 from bitstring import BitArray
 from torch import cuda
 import torch
+import torch.backends.cudnn as cudnn
+import random
 
 
 def basis_func(scaling_factor, hidden_layers):
@@ -79,8 +81,12 @@ def train_evaluate(ga_individual_solution):
     return [loss]
 
 
-np.random.seed(121)
-torch.cuda.manual_seed(0)
+torch.manual_seed(0)                       # Seed the RNG for all devices (both CPU and CUDA).
+random.seed(0)                             # Set python seed for custom operators.
+rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))  # If any of the libraries or code rely on NumPy seed the global NumPy RNG.
+np.random.seed(0)             
+torch.cuda.manual_seed_all(0) 
+cudnn.deterministic = True
 population_size = 50
 num_generations = 5
 entire_bit_array_length = 11*8

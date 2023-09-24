@@ -388,12 +388,11 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         normalised_data_train, mean_train, std_train, size_of_bat = load_data_normalise_indv2(train_battery, model_type)
         normalised_data_test, mean_test, std_test, size_of_bat_test = load_data_normalise_indv2(test_battery, model_type)
         normalised_data_validation, mean_val, std_val, size_of_bat_val = load_data_normalise_indv2(validation_battery, model_type)
-        seq_steps = hyperparameters[0]
-        X_train_1, y_train_1, X_train_2, y_train_2 = seq_split(train_battery, normalised_data_train, mean_train, std_train, seq_steps, model_type)
-        X_test, y_test = seq_split(test_battery, normalised_data_test, mean_test, std_test, seq_steps, model_type)
-        X_validation, y_validation = seq_split(validation_battery, normalised_data_validation, mean_val, std_val, seq_steps, model_type)
-        seq_length = X_train_1.shape[1]
-        model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], seq_length, X_train_1.shape[2])
+        seq_length = hyperparameters[0]
+        X_train_1, y_train_1, X_train_2, y_train_2 = seq_split(train_battery, normalised_data_train, mean_train, std_train, seq_length, model_type)
+        X_test, y_test = seq_split(test_battery, normalised_data_test, mean_test, std_test, seq_length, model_type)
+        X_validation, y_validation = seq_split(validation_battery, normalised_data_validation, mean_val, std_val, seq_length, model_type)
+        model = ParametricLSTMCNN(num_layers_conv=hyperparameters[1], output_channels=hyperparameters[2], kernel_sizes=hyperparameters[3], stride_sizes=hyperparameters[4], padding_sizes=hyperparameters[5], hidden_size_lstm=hyperparameters[6], num_layers_lstm=hyperparameters[7], hidden_neurons_dense=hyperparameters[8], seq=seq_length, inputlstm=X_train_1.shape[2])
         lf = torch.nn.MSELoss()
         opimiser = torch.optim.Adam(model.parameters(), lr=hyperparameters[9])
         model.to(device)
@@ -419,7 +418,7 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
     return rmse_test
 
 
-def seq_split(battery, normalised_data, mean, std, seq_steps, model_type):
+def seq_split(battery, normalised_data, mean, std, seq_length, model_type):
     # print(mean)
     if len(battery) == 1:
         xtr = []
@@ -435,16 +434,15 @@ def seq_split(battery, normalised_data, mean, std, seq_steps, model_type):
         indx = [0] + indx
         for j in range(len(indx)-1):
             cycle_diff = indx[j+1] - indx[j]
-            seq_length = cycle_diff//seq_steps
-            if seq_length > 0:
-                for k in range(indx[j]+seq_length, indx[j] + cycle_diff+1):
-                    xtr.append(torch.tensor(X.values[k-seq_length:k]))
-                    ytr.append(torch.tensor(y.values[k]))
-        xtr = torch.nn.utils.rnn.pad_sequence(xtr, batch_first=True)
+            for k in range(indx[j]+seq_length, indx[j] + cycle_diff+1):
+                xtr.append(torch.tensor(X.values[k-seq_length:k]))
+                ytr.append(torch.tensor(y.values[k]))
+        xtr = torch.nn.utils.rnn.pad_sequence(xtr, batch_first=True, padding_value=0)
         ytr = torch.nn.utils.rnn.pad_sequence(torch.tensor(ytr).unsqueeze(1).unsqueeze(2), batch_first=True)
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         x_tr = xtr.to(device).float()
         y_tr = ytr.to(device).float()
+        # print(x_tr.shape)
         return x_tr, y_tr
         
     if len(battery) == 2:
@@ -465,22 +463,18 @@ def seq_split(battery, normalised_data, mean, std, seq_steps, model_type):
             if i == 0:
                 for j in range(len(indx)-1):
                     cycle_diff = indx[j+1] - indx[j]
-                    seq_length = cycle_diff//seq_steps
-                    if seq_length > 0:
-                        for k in range(seq_length, cycle_diff):
-                            xtr_1.append(torch.tensor(X.values[k-seq_length:k]))
-                            ytr_1.append(torch.tensor(y.values[k]))
+                    for k in range(seq_length, cycle_diff):
+                        xtr_1.append(torch.tensor(X.values[k-seq_length:k]))
+                        ytr_1.append(torch.tensor(y.values[k]))
             else:
                 for j in range(len(indx)-1):
                     cycle_diff = indx[j+1] - indx[j]
-                    seq_length = cycle_diff//seq_steps
-                    if seq_length > 0:
-                        for k in range(seq_length, cycle_diff):
-                            xtr_2.append(torch.tensor(X.values[k-seq_length:k]))
-                            ytr_2.append(torch.tensor(y.values[k]))
+                    for k in range(seq_length, cycle_diff):
+                        xtr_2.append(torch.tensor(X.values[k-seq_length:k]))
+                        ytr_2.append(torch.tensor(y.values[k]))
 
-        xtr_1_padded = torch.nn.utils.rnn.pad_sequence(xtr_1, batch_first=True)
-        xtr_2_padded = torch.nn.utils.rnn.pad_sequence(xtr_2, batch_first=True)
+        xtr_1_padded = torch.nn.utils.rnn.pad_sequence(xtr_1, batch_first=True, padding_value=0)
+        xtr_2_padded = torch.nn.utils.rnn.pad_sequence(xtr_2, batch_first=True, padding_value=0)
 
         ytr_1 = torch.nn.utils.rnn.pad_sequence(torch.tensor(ytr_1).unsqueeze(1).unsqueeze(2), batch_first=True)
         ytr_2 = torch.nn.utils.rnn.pad_sequence(torch.tensor(ytr_2).unsqueeze(1).unsqueeze(2), batch_first=True)
@@ -490,7 +484,7 @@ def seq_split(battery, normalised_data, mean, std, seq_steps, model_type):
         y_tr_1 = ytr_1.to(device).float()
         x_tr_2 = xtr_2_padded.to(device).float()
         y_tr_2 = ytr_2.to(device).float()
-        
+        # print(x_tr_1.shape, x_tr_2.shape)
         return x_tr_1, y_tr_1, x_tr_2, y_tr_2
 
 

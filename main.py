@@ -3,6 +3,8 @@ from helpfunction import load_data_normalise_indv2, SeqDataset, plot_loss, plot_
 from ParametricLSTMCNN import ParametricLSTMCNN
 import torch
 import numpy as np
+import random
+import torch.backends.cudnn as cudnn
 
 
 # everything that was here before - idk if it's needed
@@ -69,8 +71,6 @@ import numpy as np
 # # plot_predictions(model, X_test, y_test, ttd_mean=time_mean, ttd_std=time_std, model_type=model_type)
 
 
-
-
 ### data split using individual batteries and trained to flip between batteries
 verbose = True
 battery = ['B0005', 'B0006', 'B0007', 'B0018']
@@ -84,7 +84,6 @@ cv_size = 0.1
 # [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 2, 1, 2, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 1, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 2, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 2, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1]
 bit = [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 2, 0, 0, 1, 0, 2, 0, 1, 0, 2, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0]
 seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch, hyperparameters = bit_to_hyperparameters(bit)
-seq_steps = 2
 if verbose:
     print(f'model type is {model_type}')
 if model_type == 'hybrid_padded':
@@ -93,6 +92,16 @@ elif model_type == 'data_padded':
     inputlstm = 4
 
 # model initialisation
+model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, inputlstm)
+lf = torch.nn.MSELoss()
+opimiser = torch.optim.Adam(model.parameters(), lr=lr)
+
+torch.manual_seed(0)                       # Seed the RNG for all devices (both CPU and CUDA).
+random.seed(0)                             # Set python seed for custom operators.
+rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))  # If any of the libraries or code rely on NumPy seed the global NumPy RNG.
+np.random.seed(0)             
+torch.cuda.manual_seed_all(0) 
+cudnn.deterministic = True
 
 for i in range(4):
     battery_temp = battery.copy()
@@ -112,21 +121,14 @@ for i in range(4):
     normalised_data_val, mean_val, std_val, size_of_bat_val = load_data_normalise_indv2(val_battery, model_type)
     normalised_data_test, mean_test, std_test, size_of_bat_test = load_data_normalise_indv2(test_battery, model_type)
     
-    x_train_bat_1, y_train_bat_1, x_train_bat_2, y_train_bat_2 = seq_split(train_battery, normalised_data_bat, mean_train, std_train, seq_steps=seq_steps, model_type=model_type)
-    x_val, y_val = seq_split(val_battery, normalised_data_val, mean_val, std_val, seq_steps=seq_steps, model_type=model_type)
-    x_test, y_test = seq_split(test_battery, normalised_data_test, mean_test, std_test, seq_steps=seq_steps, model_type=model_type)
+    x_train_bat_1, y_train_bat_1, x_train_bat_2, y_train_bat_2 = seq_split(train_battery, normalised_data_bat, mean_train, std_train, seq_length=seq_length, model_type=model_type)
+    x_val, y_val = seq_split(val_battery, normalised_data_val, mean_val, std_val, seq_length=seq_length, model_type=model_type)
+    x_test, y_test = seq_split(test_battery, normalised_data_test, mean_test, std_test, seq_length=seq_length, model_type=model_type)
 
     trainloader_1 = SeqDataset(x_train_bat_1, y_data=y_train_bat_1, batch=batch_size)
     # trainloader_2 = SeqDataset(x_train_bat_2, y_data=y_train_bat_2, batch=batch_size)
     val_loader = SeqDataset(x_val, y_data=y_val, batch=batch_size)
 
-    # # Training model
-    seq_length = x_train_bat_1.shape[1]
-    model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, inputlstm)
-    lf = torch.nn.MSELoss()
-    opimiser = torch.optim.Adam(model.parameters(), lr=lr)
-    torch.manual_seed(0)
-    torch.cuda.manual_seed(0)
     # np.random.seed(121)
 
     # device
@@ -139,8 +141,7 @@ for i in range(4):
     # Evaluation
     eval_model(model, x_test, y_test, criterion=lf)
 
-    # Plotting
-    if i == 3:
-        plot_loss(train_loss_history, val_loss_history)
-        plot_predictions(model, x_test, y_test, ttd_mean=mean_test, ttd_std=std_test, model_type=model_type)
-        plot_average_predictionsv2(model, x_test, y_test, ttd_mean=mean_test, ttd_std=std_test, model_type=model_type)
+    # Plotting:
+    plot_loss(train_loss_history, val_loss_history)
+    plot_predictions(model, x_test, y_test, ttd_mean=mean_test, ttd_std=std_test, model_type=model_type)
+    plot_average_predictionsv2(model, x_test, y_test, ttd_mean=mean_test, ttd_std=std_test, model_type=model_type)
