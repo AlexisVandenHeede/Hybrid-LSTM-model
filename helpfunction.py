@@ -419,72 +419,41 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
 
 
 def seq_split(battery, normalised_data, mean, std, seq_length, model_type):
-    # print(mean)
-    if len(battery) == 1:
-        xtr = []
-        ytr = []
-        data_name = f'data_bat_{battery[0]}'
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+    for i in range(len(battery)):
+        data_name = f'data_bat_{battery[i]}'
         if model_type == 'data_padded' or model_type == 'data':
             X = normalised_data[data_name].drop(['TTD', 'Time', 'Start_time'], axis=1)
         elif model_type == 'hybrid_padded':
             X = normalised_data[data_name].drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured'], axis=1)
         y = normalised_data[data_name]['TTD']
-        y_not_norm = pd.Series(y * std[0] + mean[0])
+
+        y_not_norm = pd.Series(y * std[i] + mean[i])
         indx = y_not_norm.index[y_not_norm == y_not_norm.min()].tolist()
-        indx = [0] + indx
-        for j in range(len(indx)-1):
-            cycle_diff = indx[j+1] - indx[j]
-            for k in range(indx[j]+seq_length, indx[j] + cycle_diff+1):
-                xtr.append(torch.tensor(X.values[k-seq_length:k]))
-                ytr.append(torch.tensor(y.values[k]))
-        xtr = torch.nn.utils.rnn.pad_sequence(xtr, batch_first=True, padding_value=0)
-        ytr = torch.nn.utils.rnn.pad_sequence(torch.tensor(ytr).unsqueeze(1).unsqueeze(2), batch_first=True)
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        x_tr = xtr.to(device).float()
-        y_tr = ytr.to(device).float()
-        # print(x_tr.shape)
-        return x_tr, y_tr
-        
-    if len(battery) == 2:
-        xtr_1 = []
-        xtr_2 = []
-        ytr_1 = []
-        ytr_2 = []
-        for i in range(len(battery)):
-            data_name = f'data_bat_{battery[i]}'
-            if model_type == 'data_padded' or model_type == 'data':
-                X = normalised_data[data_name].drop(['TTD', 'Time', 'Start_time'], axis=1)
-            elif model_type == 'hybrid_padded':
-                X = normalised_data[data_name].drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured'], axis=1)
-            y = normalised_data[data_name]['TTD']
 
-            y_not_norm = pd.Series(y * std[i] + mean[i])  # unnormalise y
-            indx = y_not_norm.index[y_not_norm == y_not_norm.min()].tolist()  # find index of y = 0
-            if i == 0:
-                for j in range(len(indx)-1):
-                    cycle_diff = indx[j+1] - indx[j]
-                    for k in range(seq_length, cycle_diff):
-                        xtr_1.append(torch.tensor(X.values[k-seq_length:k]))
-                        ytr_1.append(torch.tensor(y.values[k]))
-            else:
-                for j in range(len(indx)-1):
-                    cycle_diff = indx[j+1] - indx[j]
-                    for k in range(seq_length, cycle_diff):
-                        xtr_2.append(torch.tensor(X.values[k-seq_length:k]))
-                        ytr_2.append(torch.tensor(y.values[k]))
+        xtr_batch = []
+        ytr_batch = []
 
-        xtr_1_padded = torch.nn.utils.rnn.pad_sequence(xtr_1, batch_first=True, padding_value=0)
-        xtr_2_padded = torch.nn.utils.rnn.pad_sequence(xtr_2, batch_first=True, padding_value=0)
+        for j in range(len(indx) - 1):
+            cycle_diff = indx[j + 1] - indx[j]
+            for k in range(indx[j]+seq_length, cycle_diff+indx[j]):
+                xtr_batch.append(torch.tensor(X.values[k - seq_length:k]))
+                ytr_batch.append(torch.tensor(y.values[k]))
 
-        ytr_1 = torch.nn.utils.rnn.pad_sequence(torch.tensor(ytr_1).unsqueeze(1).unsqueeze(2), batch_first=True)
-        ytr_2 = torch.nn.utils.rnn.pad_sequence(torch.tensor(ytr_2).unsqueeze(1).unsqueeze(2), batch_first=True)
+        xtr_padded = torch.nn.utils.rnn.pad_sequence(xtr_batch, batch_first=True, padding_value=0)
+        ytr_padded = torch.nn.utils.rnn.pad_sequence(torch.tensor(ytr_batch).unsqueeze(1).unsqueeze(2), batch_first=True)
 
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        x_tr_1 = xtr_1_padded.to(device).float()
-        y_tr_1 = ytr_1.to(device).float()
-        x_tr_2 = xtr_2_padded.to(device).float()
-        y_tr_2 = ytr_2.to(device).float()
-        # print(x_tr_1.shape, x_tr_2.shape)
+        if i == 0:
+            x_tr_1 = xtr_padded.to(device).float()
+            y_tr_1 = ytr_padded.to(device).float()
+        else:
+            x_tr_2 = xtr_padded.to(device).float()
+            y_tr_2 = ytr_padded.to(device).float()
+
+    if len(battery) == 1:
+        return x_tr_1, y_tr_1
+    elif len(battery) == 2:
         return x_tr_1, y_tr_1, x_tr_2, y_tr_2
 
 
