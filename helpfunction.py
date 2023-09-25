@@ -402,7 +402,7 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         model, train_loss_history, val_loss_history = train_batch_ind(model, train_dataset, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
         rmse_test, raw_test = eval_model(model, X_test, y_test, lf)
         print(f'rmse_test = {rmse_test}')
-        if plot:
+        if plot and rmse_test < 0.3:
             plot_loss(train_loss_history, val_loss_history)
             plot_predictions(model, X_test, y_test, mean_test, std_test, model_type)
         k_fold_rmse.append(rmse_test)
@@ -415,8 +415,8 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
                 break
     rmse_test = np.mean(k_fold_rmse)
     raw_test = np.mean(k_fold_raw_test)
-    if rmse_test < 0.36:
-        plot_average_predictionsv2(model, X_test, y_test, mean_test, std_test, model_type)
+    # if rmse_test < 0.36:
+        # plot_average_predictionsv2(model, X_test, y_test, mean_test, std_test, model_type)
     print(f'average rmse_test = {rmse_test} and raw_err = {raw_test}')
     return rmse_test
 
@@ -431,7 +431,7 @@ def seq_split(battery, normalised_data, mean, std, seq_length, model_type):
         elif model_type == 'hybrid_padded':
             X = normalised_data[data_name].drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured'], axis=1)
         y = normalised_data[data_name]['TTD']
-
+        
         y_not_norm = pd.Series(y * std[i] + mean[i])
         indx = y_not_norm.index[y_not_norm == y_not_norm.min()].tolist()
 
@@ -439,12 +439,11 @@ def seq_split(battery, normalised_data, mean, std, seq_length, model_type):
         ytr_batch = []
 
         for j in range(len(indx) - 1):
-            cycle_diff = indx[j + 1] - indx[j]
-            for k in range(indx[j]+seq_length, cycle_diff+indx[j]):
+            for k in range(indx[j]+seq_length, indx[j+1]):
                 xtr_batch.append(torch.tensor(X.values[k - seq_length:k]))
                 ytr_batch.append(torch.tensor(y.values[k]))
 
-        xtr_padded = torch.nn.utils.rnn.pad_sequence(xtr_batch, batch_first=True, padding_value=0)
+        xtr_padded = torch.nn.utils.rnn.pad_sequence(xtr_batch, batch_first=True)
         ytr_padded = torch.nn.utils.rnn.pad_sequence(torch.tensor(ytr_batch).unsqueeze(1).unsqueeze(2), batch_first=True)
 
         if i == 0:

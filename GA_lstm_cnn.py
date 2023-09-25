@@ -53,14 +53,14 @@ def train_evaluate(ga_individual_solution):
     batch_size = batch_size.uint
 
     # resize hyperparameterss to be within range
-    seq_steps = int(np.interp(seq_steps, [0, 255], [2, 20]))
-    num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [1, 8]))
+    seq_steps = int(np.interp(seq_steps, [0, 255], [50, 100]))
+    num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [1, 5]))
     output_channels = int(np.interp(output_channels, [0, 255], [1, 10]))
     kernel_sizes = int(np.interp(kernel_sizes, [0, 255], [1, 10]))
     stride_sizes = int(np.interp(stride_sizes, [0, 255], [1, 10]))
     padding_sizes = int(np.interp(padding_sizes, [0, 255], [1, 10]))
     hidden_size_lstm = int(np.interp(hidden_size_lstm, [0, 255], [1, 10]))
-    num_layers_lstm = int(np.interp(num_layers_lstm, [0, 255], [1, 10]))
+    num_layers_lstm = int(np.interp(num_layers_lstm, [0, 255], [1, 4]))
     hidden_neurons_dense = int(np.interp(hidden_neurons_dense, [0, 255], [1, 10]))
     lr = round(np.interp(lr, [0, 255], [0.0001, 0.1]), 5)
     batch_size = int(np.interp(batch_size, [0, 255], [150, 3000]))
