@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.backends.cudnn as cudnn
 
 
 class ParametricLSTMCNN(nn.Module):
@@ -84,7 +85,16 @@ class ParametricLSTMCNN(nn.Module):
             return False
 
     def weights_init(self):
-        nn.init.xavier_normal_(self.lstm.weight)
+        seed_value = 0
+        torch.manual_seed(seed_value)
+        torch.cuda.manual_seed_all(seed_value)
+        cudnn.deterministic = True
+        cudnn.benchmark = True
+
+        for i in range(1, len(self.hidden_neurons_dense)+1):
+            dense_name = f'dense{i}'
+            dense_layer = getattr(self, dense_name)
+            nn.init.xavier_normal_(dense_layer.weight)
 
         for i in range(self.num_layers_conv):
             conv_name = f'conv{i+1}'

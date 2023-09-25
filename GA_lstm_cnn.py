@@ -76,8 +76,9 @@ def train_evaluate(ga_individual_solution):
     hidden_neurons_dense[-1] = 1
 
     hyperparameters = [seq_steps, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
+    hyperparameters = [17, 1, [1], [1], [1], [1], 9, 8, [1, 1], 0.01224, 395, 100]
     print(f'hyperparameters: {hyperparameters}')
-    loss = kfold_ind(model_type='data_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=False, strict=True)
+    loss = kfold_ind(model_type='data_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=True, strict=True)
     return [loss]
 
 
@@ -87,8 +88,8 @@ rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))  # If a
 np.random.seed(0)             
 torch.cuda.manual_seed_all(0) 
 cudnn.deterministic = True
-population_size = 50
-num_generations = 5
+population_size = 20
+num_generations = 10
 entire_bit_array_length = 11*8
 
 creator.create('FitnessMax', base.Fitness, weights=[-1.0])
@@ -120,3 +121,6 @@ print(f'list of individuals = {best_individual}')
 # hybrid padded
 # Best ever individual =  [0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0]
 # Fitness =  0.45832835882902145 seed 121
+
+# Best ever individual =  [1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0]
+# Fitness =  0.3425200656056404 

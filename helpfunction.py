@@ -162,7 +162,7 @@ def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimi
             print('way too large vall loss')
             break
         if i > 5:
-            if train_loss > 0.9:
+            if train_loss > 0.78:
                 print('no learning taking place')
                 break
 
@@ -393,6 +393,7 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         X_test, y_test = seq_split(test_battery, normalised_data_test, mean_test, std_test, seq_length, model_type)
         X_validation, y_validation = seq_split(validation_battery, normalised_data_validation, mean_val, std_val, seq_length, model_type)
         model = ParametricLSTMCNN(num_layers_conv=hyperparameters[1], output_channels=hyperparameters[2], kernel_sizes=hyperparameters[3], stride_sizes=hyperparameters[4], padding_sizes=hyperparameters[5], hidden_size_lstm=hyperparameters[6], num_layers_lstm=hyperparameters[7], hidden_neurons_dense=hyperparameters[8], seq=seq_length, inputlstm=X_train_1.shape[2])
+        model.weights_init()
         lf = torch.nn.MSELoss()
         opimiser = torch.optim.Adam(model.parameters(), lr=hyperparameters[9])
         model.to(device)
@@ -414,6 +415,8 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
                 break
     rmse_test = np.mean(k_fold_rmse)
     raw_test = np.mean(k_fold_raw_test)
+    if rmse_test < 0.36:
+        plot_average_predictionsv2(model, X_test, y_test, mean_test, std_test, model_type)
     print(f'average rmse_test = {rmse_test} and raw_err = {raw_test}')
     return rmse_test
 
