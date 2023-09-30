@@ -89,7 +89,7 @@ class ParametricLSTMCNN(nn.Module):
         torch.manual_seed(seed_value)
         torch.cuda.manual_seed_all(seed_value)
         cudnn.deterministic = True
-        cudnn.benchmark = True
+        cudnn.benchmark = False
 
         for i in range(1, len(self.hidden_neurons_dense)+1):
             dense_name = f'dense{i}'
