@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import torch
 from ParametricLSTMCNN import ParametricLSTMCNN
 from bitstring import BitArray
-
+from torch.utils.data import Dataset
 
 def load_data_normalise_indv2(battery, model_type):
     debug = False
@@ -14,7 +14,6 @@ def load_data_normalise_indv2(battery, model_type):
     Return: normalized data, mean time, std time
     """
     data = {}
-    size_of_bat = []
     means = []
     stds = []
     if model_type not in ['data', 'hybrid', 'data_padded', 'hybrid_padded']:
@@ -22,19 +21,21 @@ def load_data_normalise_indv2(battery, model_type):
         raise ValueError
 
     for i in battery:
-        data_file = f"data/{i}_TTD1.csv" if model_type == 'data' else f"data/{i}_TTD - with SOC.csv" if model_type == 'hybrid' else f"data/padded_data_mod_volt[{i}].csv" if model_type == 'data_padded' else f"data/padded_hybrid_mod_volt[{i}].csv"
+        data_file = f"data/mod_volt[{i}].csv" if model_type == 'data' else f"data/{i}_TTD - with SOC.csv" if model_type == 'hybrid' else f"data/padded_data_mod_volt[{i}].csv" if model_type == 'data_padded' else f"data/padded_hybrid_mod_volt[{i}].csv"
         battery_data = pd.read_csv(data_file)
         time = battery_data['TTD']
         time_mean = time.mean(axis=0)
         time_std = time.std(axis=0)
+        # normalized_battery_data = (battery_data - battery_data.min(axis=0)) / (battery_data.max(axis=0) - battery_data.min(axis=0))
+        # normalized_battery_data = normalized_battery_data.astype('float16')  # Convert to float16 to save memory
         normalized_battery_data = (battery_data - battery_data.mean(axis=0)) / battery_data.std(axis=0)
         normalized_battery_data = normalized_battery_data.astype('float16')  # Convert to float16 to save memory
         data_name = f'data_bat_{i}'
         data[data_name] = normalized_battery_data
         means.append(time_mean)
         stds.append(time_std)
-        # data.append(normalized_battery_data)
-        size_of_bat.append(len(battery_data))
+        # maxx.append(time_max)
+        # minn.append(time_min)
  
     # data = pd.concat(data)
     if debug:
@@ -50,7 +51,7 @@ def load_data_normalise_indv2(battery, model_type):
     if debug:
         print(data.columns)
 
-    return data, means, stds, size_of_bat
+    return data, means, stds
 
 
 def train_test_validation_split(X, y, test_size, cv_size):
@@ -119,7 +120,7 @@ def basis_func(scaling_factor, hidden_layers):
     return basis_function
 
 
-def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser, verbose = False):
+def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser, verbose=False):
     """
     train model dataloaders, early stopper Class
     """
@@ -152,6 +153,7 @@ def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimi
         val_loss = loss_v/len(val_dataloader)
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
+        
         if verbose:
             print(f"Epoch {i+1}: train loss = {train_loss:.10f}, val loss = {val_loss:.10f}")
         # earlystopper
@@ -159,12 +161,15 @@ def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimi
             print("Early stopping")
             break
         if val_loss > 10:
-            print('way too large vall loss')
+            print('way too large val loss')
             break
-        if i > 5:
-            if train_loss > 0.78:
+        if i > 15:
+            if train_loss > 0.4:
                 print('no learning taking place')
                 break
+        if train_loss == 'nan':
+            print('nan loss')
+            break
 
     return model, train_loss_history, val_loss_history
 
@@ -385,13 +390,16 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         print(f'validation battery is {validation_battery}')
         train_battery = battery_temp
         print(f'train batteries are {train_battery}')
-        normalised_data_train, mean_train, std_train, size_of_bat = load_data_normalise_indv2(train_battery, model_type)
-        normalised_data_test, mean_test, std_test, size_of_bat_test = load_data_normalise_indv2(test_battery, model_type)
-        normalised_data_validation, mean_val, std_val, size_of_bat_val = load_data_normalise_indv2(validation_battery, model_type)
+        normalised_data_train, means_train, stds_train = load_data_normalise_indv2(train_battery, model_type)
+        normalised_data_test, means_test, stds_test = load_data_normalise_indv2(test_battery, model_type)
+        normalised_data_validation, means_val, stds_val = load_data_normalise_indv2(validation_battery, model_type)
         seq_length = hyperparameters[0]
-        X_train_1, y_train_1, X_train_2, y_train_2 = seq_split(train_battery, normalised_data_train, mean_train, std_train, seq_length, model_type)
-        X_test, y_test = seq_split(test_battery, normalised_data_test, mean_test, std_test, seq_length, model_type)
-        X_validation, y_validation = seq_split(validation_battery, normalised_data_validation, mean_val, std_val, seq_length, model_type)
+
+        X_train_1, y_train_1, X_train_2, y_train_2 = seq_split(train_battery, normalised_data_train, means_train, stds_train, seq_length, model_type)
+        X_test, y_test = seq_split(test_battery, normalised_data_test, means_test, stds_test, seq_length, model_type)
+        X_validation, y_validation = seq_split(validation_battery, normalised_data_validation, means_val, stds_val, seq_length, model_type)
+        # print(f'X_train_1 shape = {X_train_1.shape}', f'y_train_1 shape = {y_train_1.shape}')
+        # print(f'validation shape = {X_validation.shape}, {y_validation.shape}')
         model = ParametricLSTMCNN(num_layers_conv=hyperparameters[1], output_channels=hyperparameters[2], kernel_sizes=hyperparameters[3], stride_sizes=hyperparameters[4], padding_sizes=hyperparameters[5], hidden_size_lstm=hyperparameters[6], num_layers_lstm=hyperparameters[7], hidden_neurons_dense=hyperparameters[8], seq=seq_length, inputlstm=X_train_1.shape[2])
         model.weights_init()
         lf = torch.nn.MSELoss()
@@ -400,11 +408,14 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         train_dataset = SeqDataset(x_data=X_train_1, y_data=y_train_1, batch=hyperparameters[10])
         validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, batch=hyperparameters[10])
         model, train_loss_history, val_loss_history = train_batch_ind(model, train_dataset, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
+        
         rmse_test, raw_test = eval_model(model, X_test, y_test, lf)
         print(f'rmse_test = {rmse_test}')
-        if plot and rmse_test < 0.3:
-            plot_loss(train_loss_history, val_loss_history)
-            plot_predictions(model, X_test, y_test, mean_test, std_test, model_type)
+        if plot:
+            print(f'i will now plot a figure')
+            # plot_loss(train_loss_history, val_loss_history)
+            plot_predictions(model, X_test, y_test, means_test, stds_test, model_type, rmse_test)
+
         k_fold_rmse.append(rmse_test)
         k_fold_raw_test.append(raw_test)
         if strict:
@@ -415,8 +426,9 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
                 break
     rmse_test = np.mean(k_fold_rmse)
     raw_test = np.mean(k_fold_raw_test)
-    # if rmse_test < 0.36:
-        # plot_average_predictionsv2(model, X_test, y_test, mean_test, std_test, model_type)
+    # if rmse_test < 0.27:
+        # save model parameters
+        # torch.save(model.state_dict(), f'best_model_rmse_{rmse_test}.pt')
     print(f'average rmse_test = {rmse_test} and raw_err = {raw_test}')
     return rmse_test
 
@@ -433,31 +445,39 @@ def seq_split(battery, normalised_data, mean, std, seq_length, model_type):
         y = normalised_data[data_name]['TTD']
         
         y_not_norm = pd.Series(y * std[i] + mean[i])
-        indx = y_not_norm.index[y_not_norm == y_not_norm.min()].tolist()
+        indx = np.array((y_not_norm.index[y_not_norm == y_not_norm.min()]).to_list())
+        
+        indx_diff = np.diff(indx)
+        # print(f'indx_diff = {indx_diff}')
+        print(np.sum(indx_diff) - (len(indx)-1) * seq_length + 2*len(indx)-1)
 
-        xtr_batch = []
-        ytr_batch = []
+        xtr_batch = np.zeros(((np.sum(indx_diff) - (len(indx)-1) * seq_length + 2*len(indx)-1), seq_length, X.shape[1]))
+        ytr_batch = np.zeros(((np.sum(indx_diff) - (len(indx)-1) * seq_length + 2*len(indx)-1), 1, 1))
 
+        counter = 0
         for j in range(len(indx) - 1):
-            for k in range(indx[j]+seq_length, indx[j+1]):
-                xtr_batch.append(torch.tensor(X.values[k - seq_length:k]))
-                ytr_batch.append(torch.tensor(y.values[k]))
-
-        xtr_padded = torch.nn.utils.rnn.pad_sequence(xtr_batch, batch_first=True)
-        ytr_padded = torch.nn.utils.rnn.pad_sequence(torch.tensor(ytr_batch).unsqueeze(1).unsqueeze(2), batch_first=True)
-
+            for k in range(indx_diff[j] - seq_length + 2):
+                xtr_batch[counter] = X.values[counter:seq_length+counter]
+                ytr_batch[counter] = y.values[counter+seq_length]
+                counter += 1
+        
+        # print(f'xtr_batch shape = {xtr_batch.shape}, ytr_batch shape = {ytr_batch.shape}')
+        xtr_batch = torch.tensor(xtr_batch)
+        ytr_batch = torch.tensor(ytr_batch)
+        # plt.plot(ytr_batch.detach().squeeze().cpu().numpy(), label='ytr_batch')
+        # plt.show()
         if i == 0:
-            x_tr_1 = xtr_padded.to(device).float()
-            y_tr_1 = ytr_padded.to(device).float()
+            x_tr_1 = xtr_batch.to(device).float()
+            y_tr_1 = ytr_batch.to(device).float()
         else:
-            x_tr_2 = xtr_padded.to(device).float()
-            y_tr_2 = ytr_padded.to(device).float()
+            x_tr_2 = xtr_batch.to(device).float()
+            y_tr_2 = ytr_batch.to(device).float()
 
     if len(battery) == 1:
         return x_tr_1, y_tr_1
     elif len(battery) == 2:
         return x_tr_1, y_tr_1, x_tr_2, y_tr_2
-
+    
 
 def bit_to_hyperparameters(bit):
     gene_length = 8
@@ -514,3 +534,45 @@ def bit_to_hyperparameters(bit):
     print(f'hyperparameters: {hyperparameters}')
     return seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch, hyperparameters
 
+
+def extrapolate(bat):
+    data_file = f'data/{bat}_TTD1.csv'
+    battery_data = pd.read_csv(data_file)
+    time = battery_data['TTD']
+    voltage = battery_data['Voltage_measured']
+    indx = time.index[time == time.min()].tolist()
+    indx = [0] + indx
+    # print(indx)
+    voltage_ext = []
+    time_ext = []
+    # print(indx)
+
+    for i in range(len(indx)-1):
+        for k in (range(indx[i], indx[i+1])):
+            # print(voltage[k-1], voltage[k])
+            if k == indx[i]:
+                voltage_ext.append(voltage[k])
+                time_ext.append(time[k])
+            elif voltage[k-1] > voltage[k]:
+                voltage_ext.append(voltage[k])
+                time_ext.append(time[k])
+            else:
+                # print(f'k = {k} and i = {i}')
+                fit = np.polyfit(time_ext, voltage_ext, 9)
+                fit_fn = np.poly1d(fit)
+                voltage_ext.append(fit_fn(time[k]))
+                time_ext.append(time[k])
+                # print(voltage[k-1], voltage[k], k, fit_fn(time[k]))
+        # plt.plot(time_ext, voltage_ext)
+        # plt.plot(time_ext, voltage[indx[i]:indx[i+1]])
+        # plt.show()
+    voltage_ext.append(voltage[indx[-1]])
+    time_ext.append(time[indx[-1]])
+    battery_data['Voltage_measured'] = voltage_ext
+
+    data_file = f'data/mod_volt[{bat}].csv'
+    battery_data.to_csv(data_file, index=False)
+    return print('done')
+
+# extrapolate('B0005')
+            

@@ -1,6 +1,6 @@
 from deap import base, creator, tools, algorithms
 from scipy.stats import bernoulli
-from helpfunction import kfold_ind
+from helpfunction import kfold_ind, bit_to_hyperparameters
 import numpy as np
 from bitstring import BitArray
 from torch import cuda
@@ -53,7 +53,7 @@ def train_evaluate(ga_individual_solution):
     batch_size = batch_size.uint
 
     # resize hyperparameterss to be within range
-    seq_steps = int(np.interp(seq_steps, [0, 255], [50, 100]))
+    seq_steps = int(np.interp(seq_steps, [0, 255], [50, 120]))
     num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [1, 5]))
     output_channels = int(np.interp(output_channels, [0, 255], [1, 10]))
     kernel_sizes = int(np.interp(kernel_sizes, [0, 255], [1, 10]))
@@ -63,33 +63,37 @@ def train_evaluate(ga_individual_solution):
     num_layers_lstm = int(np.interp(num_layers_lstm, [0, 255], [1, 4]))
     hidden_neurons_dense = int(np.interp(hidden_neurons_dense, [0, 255], [1, 10]))
     lr = round(np.interp(lr, [0, 255], [0.0001, 0.1]), 5)
-    batch_size = int(np.interp(batch_size, [0, 255], [150, 3000]))
+    batch_size = int(np.interp(batch_size, [0, 255], [150, 1000]))
 
     output_channels = basis_func(output_channels, num_layers_conv)
     kernel_sizes = basis_func(kernel_sizes, num_layers_conv)
     stride_sizes = basis_func(stride_sizes, num_layers_conv)
     padding_sizes = basis_func(padding_sizes, num_layers_conv)
-    hidden_neurons_dense = basis_func(hidden_neurons_dense, num_layers_conv)
+    hidden_neurons_dense = basis_func(hidden_neurons_dense, hidden_neurons_dense)
     hidden_neurons_dense_arr = np.flip(np.array(hidden_neurons_dense))
     hidden_neurons_dense = list(hidden_neurons_dense_arr)
     hidden_neurons_dense.append(1)
     hidden_neurons_dense[-1] = 1
 
     hyperparameters = [seq_steps, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
-    hyperparameters = [17, 1, [1], [1], [1], [1], 9, 8, [1, 1], 0.01224, 395, 100]
+    # hyperparameters = [17, 1, [1], [1], [1], [1], 9, 8, [1, 1], 0.01224, 395, 100]
+    # hyperparameter = [1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0]
+    # hyperparameters = seq_steps, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch = bit_to_hyperparameters(hyperparameter)
+    # hyperparameters = [41, 4, [1, 4, 8, 12], [1, 3, 6, 9], [1, 7, 14, 21], [1, 8, 16, 24], 6, 1, [27, 18, 9, 1, 1], 0.01264, 2094, 100]
     print(f'hyperparameters: {hyperparameters}')
-    loss = kfold_ind(model_type='data_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=True, strict=True)
+    loss = kfold_ind(model_type='data', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=False, strict=True)
     return [loss]
 
 
 torch.manual_seed(0)                       # Seed the RNG for all devices (both CPU and CUDA).
 random.seed(0)                             # Set python seed for custom operators.
-rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))  # If any of the libraries or code rely on NumPy seed the global NumPy RNG.
 np.random.seed(0)             
 torch.cuda.manual_seed_all(0) 
 cudnn.deterministic = True
-population_size = 20
-num_generations = 10
+cudnn.benchmark = False
+
+population_size = 40
+num_generations = 15
 entire_bit_array_length = 11*8
 
 creator.create('FitnessMax', base.Fitness, weights=[-1.0])
