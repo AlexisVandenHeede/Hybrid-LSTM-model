@@ -445,7 +445,7 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         X_train, y_train = k_fold_datav2(normalised_data_train, seq_length, model_type, size_of_bat)
         X_test, y_test = k_fold_datav2(normalised_data_test, seq_length, model_type, size_of_bat_test)
         X_validation, y_validation = k_fold_datav2(normalised_data_validation, seq_length, model_type, size_of_bat_val)
-        model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], hyperparameters[0], X_train.shape[2])
+        model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], hyperparameters[0], X_train.shape[2], hyperparameters[-2])
         lf = torch.nn.MSELoss()
         opimiser = torch.optim.Adam(model.parameters(), lr=hyperparameters[9])
         model.to(device)

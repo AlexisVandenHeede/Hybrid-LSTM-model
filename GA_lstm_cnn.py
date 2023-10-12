@@ -8,7 +8,7 @@ import torch
 
 
 def basis_func(scaling_factor, hidden_layers):
-    basis = np.linspace(1, scaling_factor, num=hidden_layers,  dtype=int)
+    basis = np.linspace(3, scaling_factor, num=hidden_layers,  dtype=int)
     if hidden_layers == 1:
         basis[0] = 1
     # basis = (basis).astype(int)
@@ -51,19 +51,20 @@ def train_evaluate(ga_individual_solution):
     batch_size = batch_size.uint
 
     # resize hyperparameterss to be within range
-    seq_length = int(np.interp(seq_length, [0, 255], [1, 50]))
-    num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [1, 8]))
-    output_channels = int(np.interp(output_channels, [0, 255], [1, 10]))
-    kernel_sizes = int(np.interp(kernel_sizes, [0, 255], [1, 10]))
-    stride_sizes = int(np.interp(stride_sizes, [0, 255], [1, 10]))
+    seq_length = int(np.interp(seq_length, [0, 255], [10, 100]))
+    num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [3, 4]))
+    k1 = int(np.interp(output_channels, [0, 255], [2, 15]))
+    kernel_sizes = int(np.interp(kernel_sizes, [0, 255], [3, 11]))
+    stride_sizes = int(np.interp(stride_sizes, [0, 255], [2, 15]))
     padding_sizes = int(np.interp(padding_sizes, [0, 255], [1, 10]))
-    hidden_size_lstm = int(np.interp(hidden_size_lstm, [0, 255], [1, 10]))
-    num_layers_lstm = int(np.interp(num_layers_lstm, [0, 255], [1, 10]))
-    hidden_neurons_dense = int(np.interp(hidden_neurons_dense, [0, 255], [1, 10]))
+    hidden_size_lstm = int(np.interp(hidden_size_lstm, [0, 255], [3, 20]))
+    num_layers_lstm = int(np.interp(num_layers_lstm, [0, 255], [1, 5]))
+    hidden_neurons_dense = int(np.interp(hidden_neurons_dense, [0, 255], [5, 20]))
     lr = round(np.interp(lr, [0, 255], [0.0001, 0.1]), 5)
-    batch_size = int(np.interp(batch_size, [0, 255], [150, 3000]))
+    batch_size = int(np.interp(batch_size, [0, 255], [150, 2000]))
 
-    output_channels = basis_func(output_channels, num_layers_conv)
+    k2 = hidden_neurons_dense
+    k3 = stride_sizes
     kernel_sizes = basis_func(kernel_sizes, num_layers_conv)
     stride_sizes = basis_func(stride_sizes, num_layers_conv)
     padding_sizes = basis_func(padding_sizes, num_layers_conv)
@@ -72,15 +73,23 @@ def train_evaluate(ga_individual_solution):
     hidden_neurons_dense = list(hidden_neurons_dense_arr)
     hidden_neurons_dense.append(1)
     hidden_neurons_dense[-1] = 1
-
+    
+    num_layers_conv = 4
+    stride_sizes = [1]*num_layers_conv
+    padding_sizes= [1]*num_layers_conv
+    hidden_neurons_dense = None
+    num_layers_lstm = 1
+    
+    output_channels = [k1, k2, k3, 1]
+    kernel_sizes = [3]*num_layers_conv
+        
+    #to optimise: seq, num_layers_conv, output_channels (num of kernels), hidden_size_lstm, num_layers_lstm, lr, batch_size, n_epoch
     hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
     print(f'hyperparameters: {hyperparameters}')
     loss = kfold_ind(model_type='data_padded', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=False, strict=True)
     return [loss]
 
 
-np.random.seed(121)
-torch.manual_seed(0)
 population_size = 50
 num_generations = 5
 entire_bit_array_length = 11*8
