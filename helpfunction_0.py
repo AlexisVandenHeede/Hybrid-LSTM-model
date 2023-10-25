@@ -3,7 +3,7 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
-from ParametricLSTMCNN import ParametricLSTMCNN,TwoLayerCNNLSTM, TwoLayerCNNLSTM1, old_model
+from ParametricLSTMCNN import ParametricLSTMCNN
 from bitstring import BitArray
 
 
@@ -22,14 +22,11 @@ def load_data_normalise_indv2(battery, model_type):
     for i in battery:
         data_file = f"data/{i}_TTD1.csv" if model_type == 'data' else f"data/{i}_TTD - with SOC.csv" if model_type == 'hybrid' else f"data/padded_data_mod_volt[{i}].csv" if model_type == 'data_padded' else f"data/padded_data_hybrid_w_ecm[{i}].csv"
         battery_data = pd.read_csv(data_file)
-        time = battery_data['TTD'].astype('float16')
+        time = battery_data['TTD']
         time_mean = time.mean(axis=0)
         time_std = time.std(axis=0)
-        battery_data = battery_data.drop('TTD', axis = 1)
         normalized_battery_data = (battery_data - battery_data.mean(axis=0)) / battery_data.std(axis=0)
         normalized_battery_data = normalized_battery_data.astype('float16')  # Convert to float16 to save memory
-        normalized_battery_data = pd.concat([normalized_battery_data, time], axis=1)
-    
         data.append(normalized_battery_data)
         size_of_bat.append(len(battery_data))
 
@@ -209,17 +206,17 @@ def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimi
         val_loss_history.append(val_loss)
         if verbose:
             print(f"Epoch {i+1}: train loss = {train_loss:.10f}, val loss = {val_loss:.10f}")
-        # # earlystopper
-        # if early_stopper.early_stop(val_loss):
-        #     print("Early stopping")
-        #     break
-        # if val_loss > 10:
-        #     print('way too large vall loss')
-        #     break
-        # if i > 5:
-        #     if train_loss > 0.9:
-        #         print('no learning taking place')
-        #         break
+        # earlystopper
+        if early_stopper.early_stop(val_loss):
+            print("Early stopping")
+            break
+        if val_loss > 10:
+            print('way too large vall loss')
+            break
+        if i > 5:
+            if train_loss > 0.9:
+                print('no learning taking place')
+                break
 
     return model, train_loss_history, val_loss_history
 
@@ -235,8 +232,8 @@ def plot_loss(train_loss_history, val_loss_history):
 
 def plot_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
     predictions = model(X_test)
-    #predictions = predictions.cpu() * ttd_std + ttd_mean
-    #y_test = y_test.cpu() * ttd_std + ttd_mean
+    predictions = predictions.cpu() * ttd_std + ttd_mean
+    y_test = y_test.cpu() * ttd_std + ttd_mean
     plt.plot(y_test.squeeze(), label='Actual')
     plt.plot(predictions.detach().squeeze(), label='Prediction')
     plt.xlabel('Time')
@@ -428,7 +425,7 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
     k_fold_rmse = []
     k_fold_raw_test = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    for i in range(1):
+    for i in range(4):
         battery_temp = battery.copy()
         test_battery = [battery[i]]
         print(f'test battery is {test_battery}')
@@ -444,16 +441,16 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         normalised_data_train, _, _, size_of_bat = load_data_normalise_indv2(train_battery, model_type)
         normalised_data_test, time_mean_test, time_std_test, size_of_bat_test = load_data_normalise_indv2(test_battery, model_type)
         normalised_data_validation, _, _, size_of_bat_val = load_data_normalise_indv2(validation_battery, model_type)
-        seq_length = hyperparameters[-5]
+        seq_length = hyperparameters[0]
         X_train, y_train = k_fold_datav2(normalised_data_train, seq_length, model_type, size_of_bat)
         X_test, y_test = k_fold_datav2(normalised_data_test, seq_length, model_type, size_of_bat_test)
         X_validation, y_validation = k_fold_datav2(normalised_data_validation, seq_length, model_type, size_of_bat_val)
-        model = old_model(hyperparameters[0], hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], hyperparameters[-1])
+        model = ParametricLSTMCNN(hyperparameters[1], hyperparameters[2], hyperparameters[3], hyperparameters[4], hyperparameters[5], hyperparameters[6], hyperparameters[7], hyperparameters[8], hyperparameters[0], X_train.shape[2], hyperparameters[-2])
         lf = torch.nn.MSELoss()
-        opimiser = torch.optim.Adam(model.parameters(), lr=hyperparameters[-3])
+        opimiser = torch.optim.Adam(model.parameters(), lr=hyperparameters[9])
         model.to(device)
         train_dataset = SeqDataset(x_data=X_train, y_data=y_train, seq_len=seq_length, batch=hyperparameters[10])
-        validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, seq_len=seq_length, batch=hyperparameters[-2])
+        validation_dataset = SeqDataset(x_data=X_validation, y_data=y_validation, seq_len=seq_length, batch=hyperparameters[10])
         model, train_loss_history, val_loss_history = train_batch_ind(model, train_dataset, validation_dataset, n_epoch=hyperparameters[11], lf=lf, optimiser=opimiser, verbose=True)
         rmse_test, raw_test = eval_model(model, X_test, y_test, lf)
         print(f'rmse_test = {rmse_test}')
@@ -478,53 +475,56 @@ def bit_to_hyperparameters(bit):
     gene_length = 8
     n_epoch = 100
 
-    num_kernels = BitArray(bit[0:gene_length])
-    kernel_sizes = BitArray(bit[gene_length:2*gene_length])
-    stride_sizes = BitArray(bit[2*gene_length:3*gene_length])
-    padding_sizes = BitArray(bit[3*gene_length:4*gene_length])
-    hidden_size_lstm = BitArray(bit[4*gene_length:5*gene_length])
-    num_layers_lstm = BitArray(bit[5*gene_length:6*gene_length])
-    slope = BitArray(bit[6*gene_length:7*gene_length])
-    seq_length = BitArray(bit[7*gene_length:8*gene_length])
-    lr = BitArray(bit[8*gene_length:9*gene_length])
-    batch_size = BitArray(bit[9*gene_length:10*gene_length])
-    dense_neurons = BitArray(bit[10*gene_length:11*gene_length])
+    seq_length = BitArray(bit[0:gene_length])
+    num_layers_conv = BitArray(bit[gene_length:2*gene_length])
+    output_channels = BitArray(bit[2*gene_length:3*gene_length])
+    kernel_sizes = BitArray(bit[3*gene_length:4*gene_length])
+    stride_sizes = BitArray(bit[4*gene_length:5*gene_length])
+    padding_sizes = BitArray(bit[5*gene_length:6*gene_length])
+    hidden_size_lstm = BitArray(bit[6*gene_length:7*gene_length])
+    num_layers_lstm = BitArray(bit[7*gene_length:8*gene_length])
+    hidden_neurons_dense = BitArray(bit[8*gene_length:9*gene_length])
+    lr = BitArray(bit[9*gene_length:10*gene_length])
+    batch_size = BitArray(bit[10*gene_length:11*gene_length])
 
-
-    num_kernels = num_kernels.uint
+    seq_length = seq_length.uint
+    num_layers_conv = num_layers_conv.uint
+    output_channels = output_channels.uint
     kernel_sizes = kernel_sizes.uint
+    stride_sizes = stride_sizes.uint
+    padding_sizes = padding_sizes.uint
     hidden_size_lstm = hidden_size_lstm.uint
     num_layers_lstm = num_layers_lstm.uint
-    slope = slope.uint
-    seq_length = seq_length.uint
+    hidden_neurons_dense = hidden_neurons_dense.uint
     lr = lr.uint
     batch_size = batch_size.uint
-    dense_neurons = dense_neurons.uint
 
     # resize hyperparameterss to be within range
-    num_kernels = int(np.interp(num_kernels, [0, 255], [1, 100]))
+    seq_length = int(np.interp(seq_length, [0, 255], [1, 50]))
+    num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [1, 10]))
+    output_channels = int(np.interp(output_channels, [0, 255], [1, 10]))
     kernel_sizes = int(np.interp(kernel_sizes, [0, 255], [1, 10]))
-    hidden_size_lstm = int(np.interp(hidden_size_lstm, [0, 255], [1, 30]))
-    num_layers_lstm = int(np.interp(num_layers_lstm, [0, 255], [1, 5]))
-    slope = int(np.interp(slope, [0, 255], [1, 5000]))
-    seq_length = int(np.interp(seq_length, [0, 255], [1, 100]))
+    stride_sizes = int(np.interp(stride_sizes, [0, 255], [1, 10]))
+    padding_sizes = int(np.interp(padding_sizes, [0, 255], [1, 10]))
+    hidden_size_lstm = int(np.interp(hidden_size_lstm, [0, 255], [1, 10]))
+    num_layers_lstm = int(np.interp(num_layers_lstm, [0, 255], [1, 10]))
+    hidden_neurons_dense = int(np.interp(hidden_neurons_dense, [0, 255], [1, 10]))
     lr = round(np.interp(lr, [0, 255], [0.0001, 0.1]), 5)
-    batch_size = int(np.interp(batch_size, [0, 255], [150, 2000]))
-    dense_neurons = int(np.interp(dense_neurons, [0, 255], [1, 100]))
+    batch_size = int(np.interp(batch_size, [0, 255], [150, 3000]))
 
-    kernel_sizes = [3, 3]
-    stride_sizes = [1, 1]
-    padding_sizes = [1, 1]
-    slope = slope/1000
- 
- 
+    output_channels = basis_func(output_channels, num_layers_conv)
+    kernel_sizes = basis_func(kernel_sizes, num_layers_conv)
+    stride_sizes = basis_func(stride_sizes, num_layers_conv)
+    padding_sizes = basis_func(padding_sizes, num_layers_conv)
+    hidden_neurons_dense = basis_func(hidden_neurons_dense, num_layers_conv)
+    hidden_neurons_dense_arr = np.flip(np.array(hidden_neurons_dense))
+    hidden_neurons_dense = list(hidden_neurons_dense_arr)
+    hidden_neurons_dense.append(1)
+    hidden_neurons_dense[-1] = 1
 
-    hyperparameters = [num_kernels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, slope, seq_length, 4, lr, batch_size, dense_neurons]
+    hyperparameters = [seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
     print(f'hyperparameters: {hyperparameters}')
-    
-    num_layers_conv = 4
-    
-    return hyperparameters
+    return seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch, hyperparameters
 
 
 def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
