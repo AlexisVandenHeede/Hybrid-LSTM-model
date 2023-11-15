@@ -1,7 +1,9 @@
 from helpfunction import train_batch_ind, bit_to_hyperparameters, plot_average_predictions, load_data_normalise_ind, SeqDataset, k_fold_data, ParametricLSTMCNN, eval_model
 import torch
 
-battery = ['B0005', 'B0006', 'B0007', 'B0018']
+
+# completely depreciated btw 20/09/2023
+# battery = ['B0005', 'B0006', 'B0007', 'B0018']
 # data driven padded
 # [0, 1, 0, 0, 0, 2, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 2, 0, 0, 0, 1, 1, 0, 0, 2, 1, 1, 2, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0, 2, 1, 0, 0, 2, 2, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 1, 2, 1, 1, 1, 0, 2, 0, 0, 0, 0]
 # rmse = 0.5094981116794153
@@ -41,20 +43,22 @@ for i in range(4):  # normally 4 but changed for testing
     test_battery = battery[i]
     print(f'test battery is {test_battery}')
     battery_temp.remove(test_battery)
+    test_battery = [test_battery]
     if i == 3:
         val_battery = battery[0]
     else:
         val_battery = battery[i+1]
     battery_temp.remove(val_battery)
+    val_battery = [val_battery]
     print(f'validation battery is {val_battery}')
-    train_battery_1 = battery_temp[0]
-    train_battery_2 = battery_temp[1]
+    train_battery_1 = [battery_temp[0]]
+    train_battery_2 = [battery_temp[1]]
     print(f'train batteries are {train_battery_1} and {train_battery_2}')
     
-    normalised_data_bat_1, _, _ = load_data_normalise_ind(train_battery_1, model_type)
-    normalised_data_bat_2, _, _ = load_data_normalise_ind(train_battery_2, model_type)
-    normalised_data_val, _, _ = load_data_normalise_ind(val_battery, model_type)
-    normalised_data_test, mean_ttd, std_ttd = load_data_normalise_ind(test_battery, model_type)
+    normalised_data_bat_1, _, _, _ = load_data_normalise_ind(train_battery_1, model_type)
+    normalised_data_bat_2, _, _, _ = load_data_normalise_ind(train_battery_2, model_type)
+    normalised_data_val, _, _, _ = load_data_normalise_ind(val_battery, model_type)
+    normalised_data_test, mean_ttd, std_ttd, _ = load_data_normalise_ind(test_battery, model_type)
 
     x_train_bat_1, y_train_bat_1 = k_fold_data(normalised_data_bat_1, seq_length=seq_length, model_type=model_type)
     x_train_bat_2, y_train_bat_2 = k_fold_data(normalised_data_bat_2, seq_length=seq_length, model_type=model_type)

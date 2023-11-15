@@ -2,7 +2,7 @@
 import pandas as pd
 import numpy as np
 import torch 
-from helpfunction import SeqDataset, k_fold_data, EarlyStopper, eval_model, plot_loss, plot_predictions, train_test_validation_split
+from helpfunction import SeqDataset,EarlyStopper, eval_model, plot_loss, plot_predictions, train_test_validation_split
 from ParametricLSTMCNN import ParametricLSTMCNN
 
 
@@ -248,3 +248,93 @@ def data_split(normalised_data, test_size, cv_size, seq_length, model_type):
         y_cv = y_v.clone().detach().float()
 
     return X_train, y_train, X_test, y_test, X_cv, y_cv
+
+
+def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
+    if model_type == 'data_padded' or model_type == 'data':
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time'], axis=1)
+    elif model_type == 'hybrid_padded':
+        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured',], axis=1)
+    y = normalised_data['TTD']
+    # print(f'shape of x and y is {X.shape}, {y.shape}')
+    x_tr = []
+    y_tr = []
+    for i in range(len(size_of_bat)):
+        if len(size_of_bat) == 1:
+            x_tr = []
+            y_tr = []
+            for i in range(seq_length, len(X)):
+                x_tr.append(X.values[i-seq_length:i])
+                y_tr.append(y.values[i])
+            x_tr = np.array(x_tr)
+            y_tr = np.array(y_tr)
+        if len(size_of_bat) == 2:
+            x_tr_1 = []
+            y_tr_1 = []
+            x_tr_2 = []
+            y_tr_2 = []
+            for i in range(seq_length, size_of_bat[0]):
+                x_tr_1.append(X.values[i-seq_length:i])
+                y_tr_1.append(y.values[i])
+            for i in range(seq_length, size_of_bat[1]):
+                x_tr_2.append(X.values[i-seq_length:i])
+                y_tr_2.append(y.values[i])
+            x_tr = np.concatenate((np.array(x_tr_1), np.array(x_tr_2)), axis=0)
+            y_tr = np.concatenate((np.array(y_tr_1), np.array(y_tr_2)), axis=0)
+    
+    x_tr = torch.tensor((x_tr))
+    y_tr = torch.tensor((y_tr)).unsqueeze(1).unsqueeze(2)
+    # print(f'shape of x_tr is {x_tr.shape}, shape of y_tr is {y_tr.shape}')
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    x_tr = x_tr.to(device).float()
+    y_tr = y_tr.to(device).float()
+    return x_tr, y_tr
+
+
+def load_data_normalise_ind(battery, model_type):
+    debug = False
+    """
+    Load the data and normalise it
+    return: normalised data, mean time, std time
+    """
+    data = []
+    size_of_bat = []
+    if model_type == 'data':
+        for i in battery:
+            data.append(pd.read_csv("data/" + i + "_TTD1.csv"))
+            size_of_bat.append(len(pd.read_csv("data/" + i + "_TTD1.csv")))
+    elif model_type == 'hybrid':
+        for i in battery:
+            data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
+            size_of_bat.append(len(pd.read_csv("data/" + i + "_TTD - with SOC.csv")))
+    elif model_type == 'data_padded':
+        for i in battery:
+            data.append(pd.read_csv(f"data/padded_data_mod_volt[{i}].csv"))
+            size_of_bat.append(len(pd.read_csv(f"data/padded_data_mod_volt[{i}].csv")))
+    elif model_type == 'hybrid_padded':
+        for i in battery:
+            data.append(pd.read_csv(f"data/padded_hybrid_mod_volt[{i}].csv"))
+            size_of_bat.append(len(pd.read_csv(f"data/padded_hybrid_mod_volt[{i}].csv")))
+    else:
+        print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
+        raise NameError
+    data = pd.concat(data)
+    time = data['Time']
+    time_mean = time.mean(axis=0)
+    time_std = time.std(axis=0)
+    normalised_data = (data - data.mean(axis=0)) / data.std(axis=0)
+    if debug:
+        # plot each normalised data
+        thing = input('Press enter to see scatter plots of normalised data')
+        if thing == '':
+            for col in normalised_data.columns:
+                plt.figure(figsize=(8, 6))
+                plt.scatter(range(len(normalised_data)), normalised_data[col], s=5)
+                plt.title(f'Scatter Plot for {col}')
+                plt.xlabel('Data Point Index')
+                plt.ylabel('Normalized Value')
+                plt.grid(True)
+                plt.show()
+
+    return normalised_data, time_mean, time_std, size_of_bat
+
