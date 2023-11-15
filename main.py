@@ -79,14 +79,8 @@ n_epoch = 100
 test_size = 0.1
 cv_size = 0.1
 # some data-padded hyperparameters from ga
-# bit = [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 2, 1, 2, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 1, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 2, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 2, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1]
-# [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 2, 0, 0, 1, 0, 2, 0, 1, 0, 2, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0]
-# [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 2, 1, 2, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 1, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 2, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 2, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1]
-bit = [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 2, 0, 0, 1, 0, 2, 0, 1, 0, 2, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0]
-# bit = [1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0]
-seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch, hyperparameters = bit_to_hyperparameters(bit)
+seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch = [99, 2, [1, 8], [1, 7], [1, 7], [1, 8], 6, 1, [1, 1], 0.00754, 329, 100]
 
-# [17, 1, [1], [1], [1], [1], 9, 8, [1, 1], 0.01224, 395, 100]
 if verbose:
     print(f'model type is {model_type}')
 if model_type == 'hybrid_padded':
@@ -94,17 +88,16 @@ if model_type == 'hybrid_padded':
 elif model_type == 'data_padded' or model_type == 'data':
     inputlstm = 4
 
-torch.cuda.empty_cache()
 torch.manual_seed(0)                       # Seed the RNG for all devices (both CPU and CUDA).
 random.seed(0)                             # Set python seed for custom operators.
-rs = np.random.RandomState(np.random.MT19937(np.random.SeedSequence(0)))  # If any of the libraries or code rely on NumPy seed the global NumPy RNG.
 np.random.seed(0)             
 torch.cuda.manual_seed_all(0) 
 cudnn.deterministic = True
-
+cudnn.benchmark = False
 
 # model initialisation
 model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, inputlstm)
+model.state_dict(torch.load('best_model_rmse_0.28899944573640823.pt'))
 model.weights_init()
 lf = torch.nn.MSELoss()
 opimiser = torch.optim.Adam(model.parameters(), lr=lr)
@@ -147,8 +140,9 @@ for i in range(4):
 
     # Evaluation
     eval_model(model, x_test, y_test, criterion=lf)
+    rmse_test, raw_test = eval_model(model, x_test, y_test, lf)
 
     # Plotting:
-    plot_loss(train_loss_history, val_loss_history)
-    plot_predictions(model, x_test, y_test, ttd_mean=mean_test, ttd_std=std_test, model_type=model_type)
-    plot_average_predictionsv2(model, x_test, y_test, ttd_mean=mean_test, ttd_std=std_test, model_type=model_type)
+    # plot_loss(train_loss_history, val_loss_history)
+    plot_predictions(model, x_test, y_test, ttd_mean=mean_test, ttd_std=std_test, model_type=model_type, rmse=raw_test)
+    plot_average_predictionsv2(model, x_test, y_test, ttd_mean=mean_test, ttd_std=std_test, model_type=model_type, rmse=raw_test)

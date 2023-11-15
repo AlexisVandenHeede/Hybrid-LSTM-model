@@ -183,7 +183,7 @@ def plot_loss(train_loss_history, val_loss_history):
     plt.show()
 
 
-def plot_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
+def plot_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type, rmse):
     predictions = model(X_test)
     predictions = predictions.cpu() * ttd_std[0] + ttd_mean[0]
     y_test = y_test.cpu() * ttd_std[0] + ttd_mean[0]
@@ -192,11 +192,11 @@ def plot_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
     plt.xlabel('Time')
     plt.ylabel('TTD')
     plt.legend()
-    plt.title(f'Predictions vs Actual for {model_type} model')
+    plt.title(f'Predictions vs Actual for {rmse} model')
     plt.show()
 
 
-def plot_average_predictionsv2(model, X_test, y_test, ttd_mean, ttd_std, model_type):
+def plot_average_predictionsv2(model, X_test, y_test, ttd_mean, ttd_std, model_type, rmse):
     debug = False
     df = pd.DataFrame()
     predictions = model(X_test)
@@ -281,7 +281,7 @@ def plot_average_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_typ
         plt.xlabel('Time')
         plt.ylabel('TTD')
         plt.legend()
-        plt.show()
+        plt.show
 
     # linearly interpolate the data between each cycle start so that theyre all the same length
 
@@ -377,7 +377,9 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
     k_fold_rmse = []
     k_fold_raw_test = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cpu')
     for i in range(4):
+        torch.cuda.empty_cache()
         battery_temp = battery.copy()
         test_battery = [battery[i]]
         print(f'test battery is {test_battery}')
@@ -411,10 +413,11 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         
         rmse_test, raw_test = eval_model(model, X_test, y_test, lf)
         print(f'rmse_test = {rmse_test}')
-        if plot:
+        if plot and rmse_test < 0.20:
             print(f'i will now plot a figure')
             # plot_loss(train_loss_history, val_loss_history)
-            plot_predictions(model, X_test, y_test, means_test, stds_test, model_type, rmse_test)
+            # plot_predictions(model, X_test, y_test, means_test, stds_test, model_type, rmse_test)
+            plot_average_predictionsv2(model, X_test, y_test, means_test, stds_test, model_type, rmse_test)
 
         k_fold_rmse.append(rmse_test)
         k_fold_raw_test.append(raw_test)
@@ -426,15 +429,18 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
                 break
     rmse_test = np.mean(k_fold_rmse)
     raw_test = np.mean(k_fold_raw_test)
-    # if rmse_test < 0.27:
+    if rmse_test < 0.27:
         # save model parameters
-        # torch.save(model.state_dict(), f'best_model_rmse_{rmse_test}.pt')
+        print(f'saving model with rmse_test = {rmse_test} and raw_err = {raw_test}')
+        print(f'hyperparameters are: {hyperparameters}')
+        torch.save(model.state_dict(), f'best_model_rmse_{rmse_test}.pt')
+
     print(f'average rmse_test = {rmse_test} and raw_err = {raw_test}')
     return rmse_test
 
 
 def seq_split(battery, normalised_data, mean, std, seq_length, model_type):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    # device = torch.device('cpu')
 
     for i in range(len(battery)):
         data_name = f'data_bat_{battery[i]}'
@@ -449,7 +455,7 @@ def seq_split(battery, normalised_data, mean, std, seq_length, model_type):
         
         indx_diff = np.diff(indx)
         # print(f'indx_diff = {indx_diff}')
-        print(np.sum(indx_diff) - (len(indx)-1) * seq_length + 2*len(indx)-1)
+        # print(np.sum(indx_diff) - (len(indx)-1) * seq_length + 2*len(indx)-1)
 
         xtr_batch = np.zeros(((np.sum(indx_diff) - (len(indx)-1) * seq_length + 2*len(indx)-1), seq_length, X.shape[1]))
         ytr_batch = np.zeros(((np.sum(indx_diff) - (len(indx)-1) * seq_length + 2*len(indx)-1), 1, 1))
@@ -466,6 +472,7 @@ def seq_split(battery, normalised_data, mean, std, seq_length, model_type):
         ytr_batch = torch.tensor(ytr_batch)
         # plt.plot(ytr_batch.detach().squeeze().cpu().numpy(), label='ytr_batch')
         # plt.show()
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         if i == 0:
             x_tr_1 = xtr_batch.to(device).float()
             y_tr_1 = ytr_batch.to(device).float()
@@ -508,17 +515,17 @@ def bit_to_hyperparameters(bit):
     batch_size = batch_size.uint
 
     # resize hyperparameterss to be within range
-    seq_length = int(np.interp(seq_length, [0, 255], [1, 50]))
-    num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [1, 10]))
+    seq_length = int(np.interp(seq_length, [0, 255], [50, 120]))
+    num_layers_conv = int(np.interp(num_layers_conv, [0, 255], [1, 5]))
     output_channels = int(np.interp(output_channels, [0, 255], [1, 10]))
     kernel_sizes = int(np.interp(kernel_sizes, [0, 255], [1, 10]))
     stride_sizes = int(np.interp(stride_sizes, [0, 255], [1, 10]))
     padding_sizes = int(np.interp(padding_sizes, [0, 255], [1, 10]))
     hidden_size_lstm = int(np.interp(hidden_size_lstm, [0, 255], [1, 10]))
-    num_layers_lstm = int(np.interp(num_layers_lstm, [0, 255], [1, 10]))
+    num_layers_lstm = int(np.interp(num_layers_lstm, [0, 255], [1, 4]))
     hidden_neurons_dense = int(np.interp(hidden_neurons_dense, [0, 255], [1, 10]))
     lr = round(np.interp(lr, [0, 255], [0.0001, 0.1]), 5)
-    batch_size = int(np.interp(batch_size, [0, 255], [150, 3000]))
+    batch_size = int(np.interp(batch_size, [0, 255], [150, 500]))
 
     output_channels = basis_func(output_channels, num_layers_conv)
     kernel_sizes = basis_func(kernel_sizes, num_layers_conv)

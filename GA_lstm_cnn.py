@@ -1,12 +1,14 @@
 from deap import base, creator, tools, algorithms
 from scipy.stats import bernoulli
-from helpfunction import kfold_ind, bit_to_hyperparameters
+from helpfunction import kfold_ind
 import numpy as np
 from bitstring import BitArray
 from torch import cuda
 import torch
 import torch.backends.cudnn as cudnn
 import random
+import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:512"
 
 
 def basis_func(scaling_factor, hidden_layers):
@@ -63,7 +65,7 @@ def train_evaluate(ga_individual_solution):
     num_layers_lstm = int(np.interp(num_layers_lstm, [0, 255], [1, 4]))
     hidden_neurons_dense = int(np.interp(hidden_neurons_dense, [0, 255], [1, 10]))
     lr = round(np.interp(lr, [0, 255], [0.0001, 0.1]), 5)
-    batch_size = int(np.interp(batch_size, [0, 255], [150, 1000]))
+    batch_size = int(np.interp(batch_size, [0, 255], [150, 500]))
 
     output_channels = basis_func(output_channels, num_layers_conv)
     kernel_sizes = basis_func(kernel_sizes, num_layers_conv)
@@ -76,12 +78,7 @@ def train_evaluate(ga_individual_solution):
     hidden_neurons_dense[-1] = 1
 
     hyperparameters = [seq_steps, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
-    # hyperparameters = [17, 1, [1], [1], [1], [1], 9, 8, [1, 1], 0.01224, 395, 100]
-    # hyperparameter = [1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 0]
-    # hyperparameters = seq_steps, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch = bit_to_hyperparameters(hyperparameter)
-    # hyperparameters = [41, 4, [1, 4, 8, 12], [1, 3, 6, 9], [1, 7, 14, 21], [1, 8, 16, 24], 6, 1, [27, 18, 9, 1, 1], 0.01264, 2094, 100]
-    print(f'hyperparameters: {hyperparameters}')
-    loss = kfold_ind(model_type='data', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=False, strict=True)
+    loss = kfold_ind(model_type='data', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=True, strict=True)
     return [loss]
 
 
@@ -92,8 +89,8 @@ torch.cuda.manual_seed_all(0)
 cudnn.deterministic = True
 cudnn.benchmark = False
 
-population_size = 40
-num_generations = 15
+population_size = 50
+num_generations = 25
 entire_bit_array_length = 11*8
 
 creator.create('FitnessMax', base.Fitness, weights=[-1.0])
@@ -105,12 +102,12 @@ toolbox.register('individual', tools.initRepeat, creator.Individual, toolbox.bin
 toolbox.register('population', tools.initRepeat, list, toolbox.individual)
 
 toolbox.register('mate', tools.cxOrdered)
-toolbox.register('mutate', tools.mutShuffleIndexes, indpb=0.6)
+toolbox.register('mutate', tools.mutShuffleIndexes, indpb=0.8)
 toolbox.register('select', tools.selTournament, tournsize=int(population_size/2))
 toolbox.register('evaluate', train_evaluate)
 
 population = toolbox.population(n=population_size)
-r = algorithms.eaSimple(population, toolbox, cxpb=0.4, mutpb=0.1, ngen=num_generations, verbose=True)
+r = algorithms.eaSimple(population, toolbox, cxpb=0.4, mutpb=0.4, ngen=num_generations, verbose=True)
 
 best_individual = tools.selBest(population, k=1)[0]
 print('Best ever individual = ', best_individual, '\nFitness = ', best_individual.fitness.values[0])
