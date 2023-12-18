@@ -16,8 +16,8 @@ test_size = 0.2
 cv_size = 0.2
 
 bit = [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 2, 1, 2, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 1, 1, 0, 2, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 2, 0, 1, 0, 0, 2, 1, 0, 0, 0, 2, 0, 0, 0, 0, 1, 2, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1]
-seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch = [12,
-                                        3, [12, 18, 4], [3, 3, 3], [1, 1, 1], [1, 1, 1], 20, 1, [40, 12], 0.001, 64, 20]
+seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch = [64,
+                                        3, [12, 18, 4], [3, 3, 3], [1, 1, 1], [1, 1, 1], 20, 1, [40, 5], 0.001, 32, 20]
 
 if verbose:
     print(f'model type is {model_type}')
