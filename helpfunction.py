@@ -7,7 +7,7 @@ from ParametricLSTMCNN import ParametricLSTMCNN
 from bitstring import BitArray
 
 
-def load_data_normalise_indv2(battery, model_type):
+def load_data_normalise(battery, model_type):
     debug = False
     """
     Load the data and normalize it.
@@ -23,9 +23,11 @@ def load_data_normalise_indv2(battery, model_type):
         data_file = f"data/{i}_TTD1.csv" if model_type == 'data' else f"data/{i}_TTD - with SOC.csv" if model_type == 'hybrid' else f"data/padded_data_mod_volt[{i}].csv" if model_type == 'data_padded' else f"data/padded_data_hybrid_w_ecm[{i}].csv"
         battery_data = pd.read_csv(data_file)
         time = battery_data['TTD']
-        time_mean = time.mean(axis=0)
-        time_std = time.std(axis=0)
-        normalized_battery_data = (battery_data - battery_data.mean(axis=0)) / battery_data.std(axis=0)
+        
+        data_max = battery_data.mean(axis=0)
+        data_min = battery_data.std(axis=0)
+        
+        normalized_battery_data = (battery_data - data_min) / (data_max - data_min)
         normalized_battery_data = normalized_battery_data.astype('float16')  # Convert to float16 to save memory
         data.append(normalized_battery_data)
         size_of_bat.append(len(battery_data))
@@ -33,8 +35,10 @@ def load_data_normalise_indv2(battery, model_type):
     data = pd.concat(data)
     if debug:
         print(data.columns)
+        
     data = data.loc[:, ~data.columns.str.contains('^Unnamed')]
     data = data.loc[:, ~data.columns.str.contains('^Current')]
+    
     if debug:
         print(data.columns)
 
@@ -51,85 +55,7 @@ def load_data_normalise_indv2(battery, model_type):
     #             plt.grid(True)
     #             plt.show()
 
-    return data, time_mean, time_std, size_of_bat
-
-
-def load_data_normalise_ind(battery, model_type):
-    debug = False
-    """
-    Load the data and normalise it
-    return: normalised data, mean time, std time
-    """
-    data = []
-    size_of_bat = []
-    if model_type == 'data':
-        for i in battery:
-            data.append(pd.read_csv("data/" + i + "_TTD1.csv"))
-            size_of_bat.append(len(pd.read_csv("data/" + i + "_TTD1.csv")))
-    elif model_type == 'hybrid':
-        for i in battery:
-            data.append(pd.read_csv("data/" + i + "_TTD - with SOC.csv"))
-            size_of_bat.append(len(pd.read_csv("data/" + i + "_TTD - with SOC.csv")))
-    elif model_type == 'data_padded':
-        for i in battery:
-            data.append(pd.read_csv(f"data/padded_data_mod_volt[{i}].csv"))
-            size_of_bat.append(len(pd.read_csv(f"data/padded_data_mod_volt[{i}].csv")))
-    elif model_type == 'hybrid_padded':
-        for i in battery:
-            data.append(pd.read_csv(f"data/padded_hybrid_mod_volt[{i}].csv"))
-            size_of_bat.append(len(pd.read_csv(f"data/padded_hybrid_mod_volt[{i}].csv")))
-    else:
-        print('wrong model type, either data or hybrid or data_padded or hybrid_padded')
-        raise NameError
-    data = pd.concat(data)
-    time = data['Time']
-    time_mean = time.mean(axis=0)
-    time_std = time.std(axis=0)
-    normalised_data = (data - data.mean(axis=0)) / data.std(axis=0)
-    if debug:
-        # plot each normalised data
-        thing = input('Press enter to see scatter plots of normalised data')
-        if thing == '':
-            for col in normalised_data.columns:
-                plt.figure(figsize=(8, 6))
-                plt.scatter(range(len(normalised_data)), normalised_data[col], s=5)
-                plt.title(f'Scatter Plot for {col}')
-                plt.xlabel('Data Point Index')
-                plt.ylabel('Normalized Value')
-                plt.grid(True)
-                plt.show()
-    # remove unnamed column 0.2
-    # print(normalised_data.columns)
-    # if model_type == 'hybrid_padded':
-    #     normalised_data = normalised_data.drop('Unnamed: 0.1', axis=0)
-    return normalised_data, time_mean, time_std, size_of_bat
-
-
-def train_test_validation_split(X, y, test_size, cv_size):
-    """
-    The sklearn {train_test_split} function to split the dataset (and the labels) into
-    train, test and cross-validation sets
-    """
-    X_train, X_test_cv, y_train, y_test_cv = train_test_split(
-        X, y, test_size=test_size+cv_size, shuffle=False, random_state=0)
-
-    test_size = test_size/(test_size+cv_size)
-
-    X_cv, X_test, y_cv, y_test = train_test_split(
-        X_test_cv, y_test_cv, test_size=test_size, shuffle=False, random_state=0)
-
-    # return split data
-    return X_train, y_train, X_test, y_test, X_cv, y_cv
-
-
-def testing_func(X_test, y_test, model, criterion):
-    """
-    Return the rmse of the prediction from X_test compared to y_test
-    """
-    rmse_test = 0
-    y_predict = model(X_test)
-    rmse_test = np.sqrt(criterion(y_test, y_predict).item())
-    return rmse_test
+    return data, data_max, data_min, size_of_bat
 
 
 class EarlyStopper:
@@ -182,41 +108,42 @@ def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimi
         val_loss_history = []
 
     for i in range(n_epoch):
-        loss_v = 0
-        loss = 0
+        loss_train = 0
+        loss_val = 0
+        model.train()
+        epoch.append(i+1)
+        
+        batch_idx = 0
         for l, (x, y) in enumerate(train_dataloader):
-            model.train()
+            y = y.unsqueeze(1)
+            batch_idx += 1
             target_train = model(x)
-            loss_train = lf(target_train, y)
-            loss += loss_train.item()
-            epoch.append(i+1)
+            loss = lf(target_train, y)
+            loss_train += loss.item()
+            
             optimiser.zero_grad()
-            loss_train.backward()
+            loss.backward()
             optimiser.step()
-        train_loss = loss/len(train_dataloader)
-
+            
+        train_loss = loss_train/len(train_dataloader)
+        model.eval() 
         for k, (x, y) in enumerate(val_dataloader):
-            model.eval()
+            y = y.unsqueeze(1)
             target_val = model(x)
-            loss_val = lf(target_val, y)
-            loss_v += loss_val.item()
+            loss = lf(target_val, y)
+            loss_val += loss.item()
 
-        val_loss = loss_v/len(val_dataloader)
+        val_loss = loss_val/len(val_dataloader)
         train_loss_history.append(train_loss)
         val_loss_history.append(val_loss)
+        
         if verbose:
             print(f"Epoch {i+1}: train loss = {train_loss:.10f}, val loss = {val_loss:.10f}")
-        # earlystopper
+        
         if early_stopper.early_stop(val_loss):
             print("Early stopping")
             break
-        if val_loss > 10:
-            print('way too large vall loss')
-            break
-        if i > 5:
-            if train_loss > 0.9:
-                print('no learning taking place')
-                break
+  
 
     return model, train_loss_history, val_loss_history
 
@@ -230,12 +157,36 @@ def plot_loss(train_loss_history, val_loss_history):
     plt.show()
 
 
-def plot_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
-    predictions = model(X_test)
-    predictions = predictions.cpu() * ttd_std + ttd_mean
-    y_test = y_test.cpu() * ttd_std + ttd_mean
-    plt.plot(y_test.squeeze(), label='Actual')
-    plt.plot(predictions.detach().squeeze(), label='Prediction')
+def plot_predictions(model, test_dataloader, data_max, data_min, model_type, batch_size):
+    loss_test = 0
+    lf = torch.nn.MSELoss()
+    y_pred = []
+    y_test = []
+    for k, (x, y) in enumerate(test_dataloader):
+        model.eval()
+        y = y.unsqueeze(1)
+        target_val = model(x)
+        
+        if y.shape[0] != batch_size:
+            break
+        loss = lf(target_val, y)
+        
+        y_test.append(y.detach().numpy())
+        y_pred.append(target_val.detach().numpy())
+        
+        loss_test += loss.item()
+        
+    test_loss = loss_test/len(test_dataloader)
+    
+    y_test = np.reshape(y_test, -1)
+    y_test = y_test*(data_max['TTD'] - data_min['TTD']) + data_min['TTD']
+    
+    y_pred = np.reshape(y_pred, -1)
+    y_pred = y_pred*(data_max['TTD'] - data_min['TTD']) + data_min['TTD']
+    
+    
+    plt.plot(y_test, label='Actual')
+    plt.plot(y_pred, label='Prediction')
     plt.xlabel('Time')
     plt.ylabel('TTD')
     plt.legend()
@@ -243,14 +194,12 @@ def plot_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
     plt.show()
 
 
-def plot_average_predictionsv2(model, X_test, y_test, ttd_mean, ttd_std, model_type):
-    debug = False
+def plot_average_predictionsv2(model, X_test, y_test, data_max, data_min):
     df = pd.DataFrame()
     predictions = model(X_test)
-    df['predictions'] = np.reshape(predictions.cpu().detach().numpy(), -1) * ttd_std + ttd_mean
-    df.insert(1, 'y_test', np.reshape(y_test.cpu().detach().numpy(), -1) * ttd_std + ttd_mean)
-    if debug: 
-        print(df.describe())
+    df['predictions'] = np.reshape(predictions.cpu().detach().numpy(), -1) * (data_max['TTD'] - data_min['TTD']) + data_min['TTD']
+    df.insert(1, 'y_test', np.reshape(y_test.cpu().detach().numpy(), -1) * (data_max['TTD'] - data_min['TTD']) + data_min['TTD'])
+  
     threshold = 2000
     df['cycle_starts'] = df['y_test'].diff().abs() > threshold
     df['cycle_index'] = 0
@@ -264,9 +213,7 @@ def plot_average_predictionsv2(model, X_test, y_test, ttd_mean, ttd_std, model_t
             cycle_count = 0
         df.at[index, 'cycle_index'] = cycle_count
         cycle_count += 1
-    if debug:
-        print(df.head())
-
+   
     # Calculate scaled_cycle_index
     df['scaled_cycle_index'] = 0
     current_cycle_start = 0
@@ -274,17 +221,6 @@ def plot_average_predictionsv2(model, X_test, y_test, ttd_mean, ttd_std, model_t
         scaled_indices = np.arange(length) / length
         df.loc[current_cycle_start:current_cycle_start + length - 1, 'scaled_cycle_index'] = scaled_indices
         current_cycle_start += length
-
-    if debug:
-        print(df.head())
-        # plot scaled_cycle_index vs index
-        plt.figure(figsize=(10, 6))
-        plt.scatter(df.index, df['scaled_cycle_index'], label='scaled_cycle_index', marker='o')
-        plt.xlabel('Index')
-        plt.ylabel('Scaled Cycle Index')
-        plt.legend()
-
-        plt.show()
 
     #   round scaled_cycle_index to 2dp
     df['scaled_cycle_index'] = df['scaled_cycle_index'].round(2)
@@ -306,75 +242,57 @@ def plot_average_predictionsv2(model, X_test, y_test, ttd_mean, ttd_std, model_t
     plt.show()
 
 
-def plot_average_predictions(model, X_test, y_test, ttd_mean, ttd_std, model_type):
-    debug = True
-    df = pd.DataFrame()
-    predictions = model(X_test)
-    df['predictions'] = np.reshape(predictions.cpu().detach().numpy(), -1) * ttd_std + ttd_mean
-    df.insert(1, 'y_test', np.reshape(y_test.cpu().detach().numpy(), -1) * ttd_std + ttd_mean)
-    # print(df.describe())
-    threshold = 2000
-    cycle_starts = df['y_test'].diff().abs() > threshold
-    if debug:
-        predictions = model(X_test)
-        predictions = predictions.cpu() * ttd_std + ttd_mean
-        y_test = y_test.cpu() * ttd_std + ttd_mean
-        plt.plot(y_test.squeeze(), label='Actual')
-        plt.plot(predictions.detach().squeeze(), label='Prediction')
-        print(type(cycle_starts))
-        print(df[cycle_starts].index)
-        # add cycle start as vertical line
-        plt.vlines(x=df[cycle_starts].index, ymin=-200, ymax=3500, color='r', linestyles='dashed', label='Cycle start')
-        plt.xlabel('Time')
-        plt.ylabel('TTD')
-        plt.legend()
-        plt.show()
 
-    # linearly interpolate the data between each cycle start so that theyre all the same length
+def create_sequence(x_data, y_data, seq_len):
+    x_data = x_data.to_numpy()
+    y_data = y_data.to_numpy()
+    
+    xs, ys = [], []
+    
+    for idx in range(len(x_data)):
 
-    cycle_mean = df.groupby(cycle_starts.cumsum())[["predictions", "y_test"]].mean()
-    # print(cycle_mean.describe())
-    plt.scatter(cycle_mean.index, cycle_mean['y_test'], label='Actual')
-    plt.scatter(cycle_mean.index, cycle_mean['predictions'], label='Prediction')
+        start_idx = idx * seq_len
+        end_idx = start_idx + seq_len
+               
 
-    # plt.plot(y_test.squeeze(), label='Actual')
-    # plt.plot(predictions.detach().squeeze(), label='Prediction')
-    # plt.xlabel('Time')
-    # plt.ylabel('TTD')
-    plt.legend()
-    plt.title(f'Average Predictions vs Actual for {model_type} model')
-    plt.show()
+        x = x_data[start_idx:end_idx]
+        y = y_data[start_idx:end_idx]        
+        if end_idx > len(x_data):
+            break
+        if x.shape[0] != seq_len:
+            break
+        if y.shape[0] != seq_len:
+            break
+        if x.shape[1] != x_data.shape[1]:
+            break        
+        xs.append(x)
+        ys.append(y)
 
-
-class SeqDataset:
-    def __init__(self, x_data, y_data, seq_len, batch):
-        self.x_data = x_data
-        self.y_data = y_data
-        self.seq_len = seq_len
-        self.batch = batch
-
-    def __len__(self):
-        return np.ceil((len(self.x_data) / self.batch)).astype('int')
-
-    def __getitem__(self, idx):
-        start_idx = idx * self.batch
-        end_idx = start_idx + self.batch
-
-        x = self.x_data[start_idx:end_idx]
-        y = self.y_data[start_idx:end_idx]
-
-        if end_idx > len(self.x_data):
-            x = self.x_data[start_idx:]
-            y = self.y_data[start_idx:]
-
-        if x.shape[0] == 0:
-            raise StopIteration
-
-        return x, y
+    xs = np.array(xs)
+    
+    ys = np.array(ys)
+    xs = torch.from_numpy(xs).float()
+    ys = torch.from_numpy(ys).float()
+        
+    return xs, ys
+    
+def SeqDataset(x_data, y_data, seq_len, batch):
+    """
+    create a sequence dataset
+    """
+    x, y = create_sequence(x_data, y_data, seq_len)
+    dataset = torch.utils.data.TensorDataset(x, y)
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch, shuffle=False)
+    return dataloader
 
 
 def eval_model(model, X_test, y_test, criterion):
     model.eval()
+    X_test = np.array(X_test)
+    y_test = np.array(y_test)
+    X_test = torch.from_numpy(X_test).float()
+    y_test = torch.from_numpy(y_test).float()
+    
     with torch.no_grad():
         y_pred = model(X_test)
         rmse = torch.sqrt(criterion(y_test, y_pred)).item()
@@ -390,34 +308,9 @@ def k_fold_datav2(normalised_data, seq_length, model_type, size_of_bat):
     elif model_type == 'hybrid_padded':
         X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured'], axis=1)
     y = normalised_data['TTD']
-    if len(size_of_bat) == 1:
-        x_tr = np.empty((len(X) - seq_length, seq_length, X.shape[1]))
-        y_tr = np.empty((len(X) - seq_length, 1, 1))
-        for i in range(seq_length, len(X)):
-            x_tr[i - seq_length] = X.values[i - seq_length:i]
-            y_tr[i - seq_length] = y.values[i]
-    elif len(size_of_bat) == 2:
-        x_tr_1 = np.empty((size_of_bat[0] - seq_length, seq_length, X.shape[1]))
-        y_tr_1 = np.empty((size_of_bat[0] - seq_length, 1, 1))
-        x_tr_2 = np.empty((size_of_bat[1] - seq_length, seq_length, X.shape[1]))
-        y_tr_2 = np.empty((size_of_bat[1] - seq_length, 1, 1))
-        for i in range(seq_length, size_of_bat[0]):
-            x_tr_1[i - seq_length] = X.values[i - seq_length:i]
-            y_tr_1[i - seq_length] = y.values[i]
-        for i in range(seq_length, size_of_bat[1]):
-            x_tr_2[i - seq_length] = X.values[i - seq_length:i]
-            y_tr_2[i - seq_length] = y.values[i]
-        x_tr = np.concatenate((x_tr_1, x_tr_2), axis=0)
-        y_tr = np.concatenate((y_tr_1, y_tr_2), axis=0)
+    
 
-    x_tr = torch.tensor(x_tr)
-    y_tr = torch.tensor(y_tr)
-
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    x_tr = x_tr.to(device).float()
-    y_tr = y_tr.to(device).float()
-
-    return x_tr, y_tr
+    return X, y
 
 
 def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
@@ -438,9 +331,9 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
         print(f'validation battery is {validation_battery}')
         train_battery = battery_temp
         print(f'train batteries are {train_battery}')
-        normalised_data_train, _, _, size_of_bat = load_data_normalise_indv2(train_battery, model_type)
-        normalised_data_test, time_mean_test, time_std_test, size_of_bat_test = load_data_normalise_indv2(test_battery, model_type)
-        normalised_data_validation, _, _, size_of_bat_val = load_data_normalise_indv2(validation_battery, model_type)
+        normalised_data_train, _, _, size_of_bat = load_data_normalise(train_battery, model_type)
+        normalised_data_test, time_mean_test, time_std_test, size_of_bat_test = load_data_normalise(test_battery, model_type)
+        normalised_data_validation, _, _, size_of_bat_val = load_data_normalise(validation_battery, model_type)
         seq_length = hyperparameters[0]
         X_train, y_train = k_fold_datav2(normalised_data_train, seq_length, model_type, size_of_bat)
         X_test, y_test = k_fold_datav2(normalised_data_test, seq_length, model_type, size_of_bat_test)
@@ -527,41 +420,3 @@ def bit_to_hyperparameters(bit):
     return seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch, hyperparameters
 
 
-def k_fold_data(normalised_data, seq_length, model_type, size_of_bat):
-    if model_type == 'data_padded' or model_type == 'data':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time'], axis=1)
-    elif model_type == 'hybrid_padded':
-        X = normalised_data.drop(['TTD', 'Time', 'Start_time', 'Instance', 'Voltage_measured',], axis=1)
-    y = normalised_data['TTD']
-    # print(f'shape of x and y is {X.shape}, {y.shape}')
-    x_tr = []
-    y_tr = []
-    if len(size_of_bat) == 1:
-        x_tr = []
-        y_tr = []
-        for i in range(seq_length, len(X)):
-            x_tr.append(X.values[i-seq_length:i])
-            y_tr.append(y.values[i])
-        x_tr = np.array(x_tr)
-        y_tr = np.array(y_tr)
-    if len(size_of_bat) == 2:
-        x_tr_1 = []
-        y_tr_1 = []
-        x_tr_2 = []
-        y_tr_2 = []
-        for i in range(seq_length, size_of_bat[0]):
-            x_tr_1.append(X.values[i-seq_length:i])
-            y_tr_1.append(y.values[i])
-        for i in range(seq_length, size_of_bat[1]):
-            x_tr_2.append(X.values[i-seq_length:i])
-            y_tr_2.append(y.values[i])
-        x_tr = np.concatenate((np.array(x_tr_1), np.array(x_tr_2)), axis=0)
-        y_tr = np.concatenate((np.array(y_tr_1), np.array(y_tr_2)), axis=0)
-    
-    x_tr = torch.tensor((x_tr))
-    y_tr = torch.tensor((y_tr)).unsqueeze(1).unsqueeze(2)
-    # print(f'shape of x_tr is {x_tr.shape}, shape of y_tr is {y_tr.shape}')
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    x_tr = x_tr.to(device).float()
-    y_tr = y_tr.to(device).float()
-    return x_tr, y_tr

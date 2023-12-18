@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+torch.manual_seed(0)
 
 class ParametricLSTMCNN(nn.Module):
     def __init__(self, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq, inputlstm):
@@ -71,6 +72,7 @@ class ParametricLSTMCNN(nn.Module):
                     setattr(self, 'dense'+str(i), nn.Linear(in_features=self.hidden_neurons_dense[i-2], out_features=self.hidden_neurons_dense[i-1]))
 
             self.relu = nn.ReLU()
+            self.maxpool = nn.MaxPool1d(kernel_size=4, stride=4)
             self.dropout = nn.Dropout(0.2)
 
     def hyperparameter_check(self):
@@ -117,6 +119,7 @@ class ParametricLSTMCNN(nn.Module):
             batch_name = f'batch{i+1}'
             batch_norm = getattr(self, batch_name)
             out = batch_norm(out)
+            out = self.relu(out)
             if verbose:
                 print(f'shape after batch layer {i+1} is {out.shape}')
 
