@@ -377,6 +377,7 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
     k_fold_rmse = []
     k_fold_raw_test = []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(hyperparameters)
     # device = torch.device('cpu')
     for i in range(4):
         torch.cuda.empty_cache()
@@ -429,7 +430,7 @@ def kfold_ind(model_type, hyperparameters, battery, plot=False, strict=True):
                 break
     rmse_test = np.mean(k_fold_rmse)
     raw_test = np.mean(k_fold_raw_test)
-    if rmse_test < 0.27:
+    if raw_test < 0.27:
         # save model parameters
         print(f'saving model with rmse_test = {rmse_test} and raw_err = {raw_test}')
         print(f'hyperparameters are: {hyperparameters}')

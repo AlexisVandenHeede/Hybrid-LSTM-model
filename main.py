@@ -79,7 +79,7 @@ n_epoch = 100
 test_size = 0.1
 cv_size = 0.1
 # some data-padded hyperparameters from ga
-seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch = [99, 2, [1, 8], [1, 7], [1, 7], [1, 8], 6, 1, [1, 1], 0.00754, 329, 100]
+seq_length, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch = [108, 2, [1, 7], [1, 3], [1, 1], [1, 3], 8, 2, [6, 5, 4, 3, 2, 1, 1], 0.0095, 332, 100]
 
 if verbose:
     print(f'model type is {model_type}')
@@ -88,17 +88,17 @@ if model_type == 'hybrid_padded':
 elif model_type == 'data_padded' or model_type == 'data':
     inputlstm = 4
 
-torch.manual_seed(0)                       # Seed the RNG for all devices (both CPU and CUDA).
-random.seed(0)                             # Set python seed for custom operators.
-np.random.seed(0)             
-torch.cuda.manual_seed_all(0) 
-cudnn.deterministic = True
-cudnn.benchmark = False
+# torch.manual_seed(0)                       # Seed the RNG for all devices (both CPU and CUDA).
+# random.seed(0)                             # Set python seed for custom operators.
+# np.random.seed(0)             
+# torch.cuda.manual_seed_all(0) 
+# cudnn.deterministic = True
+# cudnn.benchmark = False
 
 # model initialisation
 model = ParametricLSTMCNN(num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, seq_length, inputlstm)
-model.state_dict(torch.load('best_model_rmse_0.28899944573640823.pt'))
-model.weights_init()
+model.state_dict(torch.load('best_model_rmse_0.4331374987959862.pt'))
+# model.weights_init()
 lf = torch.nn.MSELoss()
 opimiser = torch.optim.Adam(model.parameters(), lr=lr)
 
@@ -125,9 +125,9 @@ for i in range(4):
     x_val, y_val = seq_split(val_battery, normalised_data_val, mean_val, std_val, seq_length=seq_length, model_type=model_type)
     x_test, y_test = seq_split(test_battery, normalised_data_test, mean_test, std_test, seq_length=seq_length, model_type=model_type)
 
-    trainloader_1 = SeqDataset(x_train_bat_1, y_data=y_train_bat_1, batch=batch_size)
-    # trainloader_2 = SeqDataset(x_train_bat_2, y_data=y_train_bat_2, batch=batch_size)
-    val_loader = SeqDataset(x_val, y_data=y_val, batch=batch_size)
+    # trainloader_1 = SeqDataset(x_train_bat_1, y_data=y_train_bat_1, batch=batch_size)
+    # # trainloader_2 = SeqDataset(x_train_bat_2, y_data=y_train_bat_2, batch=batch_size)
+    # val_loader = SeqDataset(x_val, y_data=y_val, batch=batch_size)
 
     # np.random.seed(121)
 
@@ -136,7 +136,7 @@ for i in range(4):
     print(f'device is {device}')
     model.to(device)
 
-    model, train_loss_history, val_loss_history = train_batch_ind(model, trainloader_1, val_loader, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
+    # model, train_loss_history, val_loss_history = train_batch_ind(model, trainloader_1, val_loader, n_epoch=n_epoch, lf=lf, optimiser=opimiser, verbose=True)
 
     # Evaluation
     eval_model(model, x_test, y_test, criterion=lf)

@@ -71,7 +71,7 @@ class ParametricLSTMCNN(nn.Module):
                 else:
                     setattr(self, 'dense'+str(i), nn.Linear(in_features=self.hidden_neurons_dense[i-2], out_features=self.hidden_neurons_dense[i-1]))
 
-            self.relu = nn.ReLU()
+            self.relu = nn.LeakyReLU()
             self.dropout = nn.Dropout(0.2)
 
     def hyperparameter_check(self):
@@ -87,7 +87,7 @@ class ParametricLSTMCNN(nn.Module):
     def weights_init(self):
         seed_value = 0
         torch.manual_seed(seed_value)
-        torch.cuda.manual_seed_all(seed_value)
+        torch.cuda.manual_seed_all(seed_value) 
         cudnn.deterministic = True
         cudnn.benchmark = False
 
@@ -127,6 +127,7 @@ class ParametricLSTMCNN(nn.Module):
             batch_name = f'batch{i+1}'
             batch_norm = getattr(self, batch_name)
             out = batch_norm(out)
+            out = self.relu(out)
             if verbose:
                 print(f'shape after batch layer {i+1} is {out.shape}')
 

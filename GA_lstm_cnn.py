@@ -79,7 +79,7 @@ def train_evaluate(ga_individual_solution):
     hidden_neurons_dense[-1] = 1
 
     hyperparameters = [seq_steps, num_layers_conv, output_channels, kernel_sizes, stride_sizes, padding_sizes, hidden_size_lstm, num_layers_lstm, hidden_neurons_dense, lr, batch_size, n_epoch]
-    loss = kfold_ind(model_type='data', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=True, strict=True)
+    loss = kfold_ind(model_type='data', hyperparameters=hyperparameters, battery=['B0005', 'B0006', 'B0007', 'B0018'], plot=False, strict=True)
     return [loss]
 
 
@@ -90,8 +90,8 @@ torch.cuda.manual_seed_all(0)
 cudnn.deterministic = True
 cudnn.benchmark = False
 
-population_size = 50
-num_generations = 25
+population_size = 70
+num_generations = 50
 entire_bit_array_length = 11*8
 
 creator.create('FitnessMax', base.Fitness, weights=[-1.0])
