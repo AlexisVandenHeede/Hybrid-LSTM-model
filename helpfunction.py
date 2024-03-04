@@ -57,7 +57,7 @@ def load_data_normalise_indv2(battery, model_type):
     return data, time_mean, time_std, size_of_bat
 
 
-def load_data_normalise_ind(battery, model_type):
+# def load_data_normalise_ind(battery, model_type):
     debug = False
     """
     Load the data and normalise it
@@ -108,7 +108,7 @@ def load_data_normalise_ind(battery, model_type):
     return normalised_data, time_mean, time_std, size_of_bat
 
 
-def train_test_validation_split(X, y, test_size, cv_size):
+# def train_test_validation_split(X, y, test_size, cv_size):
     """
     The sklearn {train_test_split} function to split the dataset (and the labels) into
     train, test and cross-validation sets
@@ -125,7 +125,7 @@ def train_test_validation_split(X, y, test_size, cv_size):
     return X_train, y_train, X_test, y_test, X_cv, y_cv
 
 
-def testing_func(X_test, y_test, model, criterion):
+# def testing_func(X_test, y_test, model, criterion):
     """
     Return the rmse of the prediction from X_test compared to y_test
     """
@@ -161,7 +161,7 @@ class EarlyStopper:
                 return False
 
 
-def basis_func(scaling_factor, hidden_layers):
+# def basis_func(scaling_factor, hidden_layers):
     """ Rescale hyperparameter per layer using basis function, now just np.arange"""
     basis = (np.arange(hidden_layers, dtype=int))*scaling_factor
     if hidden_layers == 1:
@@ -174,7 +174,7 @@ def basis_func(scaling_factor, hidden_layers):
     return basis_function
 
 
-def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser, verbose = False):
+# def train_batch_ind(model, train_dataloader, val_dataloader, n_epoch, lf, optimiser, verbose = False):
     """
     train model dataloaders, early stopper Class
     """
